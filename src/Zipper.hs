@@ -25,9 +25,17 @@ toListZipper xs =
     [] -> Empty
     y : ys -> ListZipper [] y ys
 
+-- | Turns a list-zipper back into a list.
+toList :: ListZipper t -> [t]
+toList lz =
+  case lz of
+    Empty -> []
+    ListZipper ls f rs -> ls ++ [f] ++ rs
+
 -- | Gives a list-zipper containing only the specified element.
 singleton :: t -> ListZipper t
 singleton x = toListZipper [x]
+
 
 -- | A zipper where one can move the focus to the left or the right.
 class OneDimensional f where
@@ -52,6 +60,7 @@ instance OneDimensional ListZipper where
           r : rs' -> ListZipper (f : ls) r rs'
       _ -> Empty
 
+
 -- | Gets the list of elements to the left of the focus.
 getLeft :: ListZipper t -> [t]
 getLeft z = 
@@ -69,10 +78,9 @@ getRight z =
 -- | Gets the focus, if it exists.
 getFocus :: ListZipper t -> Maybe t
 getFocus z =
-  case z of
-    Empty -> Nothing
-    ListZipper _ x _ -> Just x
-
+    case z of
+      Empty -> Nothing
+      ListZipper _ x _ -> Just x
 
 -- | Moves the focus to the first element of the list.
 fullLeft :: ListZipper t -> ListZipper t
@@ -131,6 +139,13 @@ getChildren :: Tree t -> Maybe (ListZipper (Tree t))
 getChildren (Tree _ cs) = Just cs
 getChildren _ = Nothing
 
+-- | Gets the children of the root of a tree, but as a list.
+getChildrenList :: Tree t -> [Tree t]
+getChildrenList t =
+  case getChildren t of
+    Nothing -> []
+    Just lz -> toList lz
+
 -- | TreeCtxt t: The internal information of
 -- a node, along with its left-siblings and
 -- right-siblings.
@@ -148,6 +163,13 @@ data TreeZipper t = TreeZipper {
   siblingZipper :: ListZipper (Tree t),
   path :: Path t
 }
+
+-- | Determines whether the focus has a right-sibling.
+hasRightSibling :: TreeZipper t -> Bool
+hasRightSibling tz =
+  case siblingZipper tz of
+    Empty -> False
+    ListZipper _ _ rs -> not (null rs)
 
 -- | Gives a tree-zipper for a given tree,
 -- with the focus in the root by default.
@@ -176,6 +198,34 @@ instance OneDimensional TreeZipper where
   -- | Moves the focus to the sibling directly to the
   -- right, if possible
   goRight tz = tz { siblingZipper = goRight (siblingZipper tz) }
+
+-- | Get the subtree at the focus of the tree-zipper.
+getFocusSubtree :: TreeZipper t -> Tree t
+getFocusSubtree tz = 
+  case getFocus (siblingZipper tz) of
+    Nothing -> EmptyTree
+    Just x -> x
+
+-- | Get the info stored at the focus of the tree-zipper, if it exists.
+getFocusInfo :: TreeZipper t -> Maybe t
+getFocusInfo tz =
+  case getFocusSubtree tz of
+    EmptyTree -> Nothing
+    Tree info _ -> Just info
+
+-- | Get the list-zipper of the children of the current focus.
+getFocusChildren :: TreeZipper t -> ListZipper (Tree t)
+getFocusChildren tz =
+  case getFocusSubtree tz of
+    EmptyTree -> Empty
+    Tree _ children -> children
+
+-- | Determines whether the focus is at a leaf.
+atLeaf :: TreeZipper t -> Bool
+atLeaf tz =
+  case getFocusChildren tz of
+    Empty -> True
+    _ -> False
 
 -- | If possible, move the focus down to the focus of the children.
 goDown :: TreeZipper t -> TreeZipper t
