@@ -3,6 +3,8 @@ module AST where
 
 import Zipper
 import Data.Map (Map)
+import Data.Map.Lazy (fromList)
+import Data.List
 
 data Type =
    B              |
@@ -48,7 +50,8 @@ type Program = ListZipper TopLevel
 getHoles :: TreeZipper NodeInfo -> [(Int, TreeZipper NodeInfo)]
 getHoles tz =
   case getFocusInfo tz of
-    Hole index _ -> [(index, tz)]
+    Just (Hole index _) -> [(index, tz)]
+    Nothing -> []
     _ ->
       if atLeaf tz
         then []
@@ -59,7 +62,7 @@ getHoles tz =
 -- below the focus, and in right-siblings of the focus.
 getHolesRight :: TreeZipper NodeInfo -> [(Int, TreeZipper NodeInfo)]
 getHolesRight tz =
-  if hasRightSibling tz
+  if hasRight tz
     then getHoles tz ++ getHolesRight (goRight tz)
     else getHoles tz
 
@@ -70,7 +73,7 @@ getLocal tz =
   let
     ancestorInfo = map (\(TreeCtxt _ x _) -> x) (path tz)
   in
-    Map.fromList (filterLambdas ancestorInfo)
+    fromList (filterLambdas ancestorInfo)
     where
       filterLambdas [] = []
       filterLambdas (p : ps) =
@@ -91,23 +94,23 @@ instance Show Type where
       UVar k -> "?" ++ show k
 
 -- | Auxiliary functions for pretty-printing expressions.
-showFirst :: [t] -> String 
+showFirst :: (Show t) => [t] -> String 
 showFirst xs =
-  case xs !? 0 of
-    Just x -> show x
-    Nothing -> ""
+  case xs of 
+    x : _ -> show x
+    _ -> ""
 
-showSecond :: [t] -> String
+showSecond :: (Show t) => [t] -> String
 showSecond xs =
-  case xs !? 1 of
-    Just x -> show x
-    Nothing -> ""
+  case xs of
+    _ : y : _ -> show y
+    _ -> ""
 
-showThird :: [t] -> String
+showThird :: (Show t) => [t] -> String
 showThird xs =
-  case xs !? 2 of
-    Just x -> show x
-    Nothing -> ""
+  case xs of
+    _ : _ : z : _ -> show z
+    _ -> ""
 
 tab :: String -> String
 tab s = unlines $ map (" " ++) $ lines s
@@ -135,7 +138,7 @@ instance Show (Tree NodeInfo) where
 -- | Given an expression in tree-zipper form, obtains a pretty-printed representation.
 -- Uses the tree form representation from the root.
 instance Show (TreeZipper NodeInfo) where
-  show expr = show (toRoot expr)
+  show e = show (toRoot e)
 
 -- | Given a full top-level expression, obtains a pretty-printed representation.
 instance Show TopLevel where
@@ -143,7 +146,7 @@ instance Show TopLevel where
     let
       defName = if isRec tl then "letrec" else "let"
     in
-      defName ++ " (" ++ name tl ++ " : " ++ tlType tl ++ ") =\n" ++ (tab $ show expr) ++ "\n"
+      defName ++ " (" ++ name tl ++ " : " ++ show (tlType tl) ++ ") =\n" ++ tab (show (expr tl)) ++ "\n"
 
 -- | Given a program, obtain a pretty-printed representation.
 instance Show Program where

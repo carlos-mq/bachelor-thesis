@@ -43,6 +43,24 @@ class OneDimensional f where
   goLeft :: f t -> f t
   -- | Moves the focus one element to the right, if possible.
   goRight :: f t -> f t
+  -- | Determines whether there's an element to the right.
+  hasRight :: f t -> Bool
+  -- | Determines whether there's an element to the left.
+  hasLeft :: f t -> Bool
+
+-- | Moves the focus to the leftmost possible position.
+fullLeft :: (OneDimensional f) => f t -> f t
+fullLeft x =
+  if hasLeft x
+    then fullLeft (goLeft x)
+    else x
+
+-- | Moves the focus to the rightmost possible position.
+fullRight :: (OneDimensional f) => f t -> f t
+fullRight x =
+  if hasRight x
+    then fullRight (goRight x)
+    else x
 
 instance OneDimensional ListZipper where
   goLeft z =
@@ -59,6 +77,14 @@ instance OneDimensional ListZipper where
           [] -> z
           r : rs' -> ListZipper (f : ls) r rs'
       _ -> Empty
+  hasRight z =
+    case z of
+      ListZipper _ _ (_ : _) -> True
+      _ -> False
+  hasLeft z =
+    case z of
+      ListZipper (_ : _) _ _ -> True
+      _ -> False
 
 
 -- | Gets the list of elements to the left of the focus.
@@ -81,27 +107,6 @@ getFocus z =
     case z of
       Empty -> Nothing
       ListZipper _ x _ -> Just x
-
--- | Moves the focus to the first element of the list.
-fullLeft :: ListZipper t -> ListZipper t
-fullLeft z =
-  case z of
-    ListZipper ls f rs ->
-      case ls of
-        [] -> z
-        _ -> fullLeft (goLeft z)
-    _ -> Empty
-        
-
--- | Moves the focus to the last element of the list.
-fullRight :: ListZipper t -> ListZipper t
-fullRight z =
-  case z of
-    ListZipper ls f rs ->
-      case rs of
-        [] -> z
-        _ -> fullRight (goRight z)
-    _ -> Empty
 
 -- | Places an element right after the focus, leaving
 -- the focus in this element by default.
@@ -164,13 +169,6 @@ data TreeZipper t = TreeZipper {
   path :: Path t
 }
 
--- | Determines whether the focus has a right-sibling.
-hasRightSibling :: TreeZipper t -> Bool
-hasRightSibling tz =
-  case siblingZipper tz of
-    Empty -> False
-    ListZipper _ _ rs -> not (null rs)
-
 -- | Gives a tree-zipper for a given tree,
 -- with the focus in the root by default.
 toTreeZipper :: Tree t -> TreeZipper t
@@ -198,6 +196,8 @@ instance OneDimensional TreeZipper where
   -- | Moves the focus to the sibling directly to the
   -- right, if possible
   goRight tz = tz { siblingZipper = goRight (siblingZipper tz) }
+  hasRight tz = hasRight (siblingZipper tz)
+  hasLeft tz =  hasLeft (siblingZipper tz)
 
 -- | Get the subtree at the focus of the tree-zipper.
 getFocusSubtree :: TreeZipper t -> Tree t
