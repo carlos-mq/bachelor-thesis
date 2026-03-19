@@ -14,6 +14,7 @@ data Type =
    List Type      |
    TypeVar String |
    UVar Int
+   deriving Eq
 
 type Ctxt = Map String Type
 
