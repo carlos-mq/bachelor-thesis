@@ -104,6 +104,9 @@ replaceExpr tz tl = tl { expr = tz }
 rfTopLevel :: ReplaceFocus -> TopLevel -> TopLevel
 rfTopLevel rf tl = replaceExpr (putTree (rfToTree rf) (expr tl)) tl
 
+getTypeAnnotation :: TopLevel -> (String, Type)
+getTypeAnnotation tl = (name tl, tlType tl)
+
 type Program = ListZipper TopLevel
 
 -- | Given a tree-zipper, returns tree-zippers to
@@ -223,6 +226,16 @@ instance Show TopLevel where
     in
       defName ++ " (" ++ name tl ++ " : " ++ show (tlType tl) ++ ") =\n" ++ tab (show (expr tl)) ++ "\n"
 
+{-
+Program-wide utilities
+-}
+
 -- | Given a program, obtain a pretty-printed representation.
 instance Show Program where
   show prog = unlines $ map show (toList prog)
+
+-- | Obtain the global context induced by a program.
+inducedGlobal :: Program -> Ctxt
+inducedGlobal prog =
+  fromList $ toList (fmap getTypeAnnotation prog)
+

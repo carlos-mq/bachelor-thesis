@@ -4,6 +4,7 @@ import Zipper
 import AST
 import StateHandling
 import Parsing
+import Tactic
 import System.IO
 import qualified Data.Map as Map
 
@@ -32,6 +33,12 @@ readAction ss = do
         Nothing -> do
           putStrLn "Unknown hole. Try again."
           readAction ss
+    Intro x -> -- Later on, add a check that ensures that the variable name isn't in the context already.
+      display (runTactic (introTactic x) ss)
+    Cases ->
+      display (runTactic casesTactic ss)
+    GenApply ->
+      display (runTactic genApplyTactic ss)
     Exit -> return ()
 
 display :: SynthesisState -> IO ()

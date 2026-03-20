@@ -155,7 +155,16 @@ parseAction = do
       return (Jump n)
     "exit" -> do
       return Exit
+    "intro" -> do
+      name <- nextWord
+      spaces
+      return (Intro name)
+    "cases" -> do
+      return Cases
+    "genApply" -> do
+      return GenApply
     _ -> fail "Unknown command!"
+
 
 getAction :: String -> Action
 getAction a =

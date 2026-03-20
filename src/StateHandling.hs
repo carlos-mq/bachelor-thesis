@@ -9,7 +9,7 @@ import Zipper
 
 data SynthesisState = SynthesisState {
   prog :: Program, -- The zipper.
-  global :: Ctxt, -- The context of predefined functions.
+  groundCtxt :: Ctxt, -- The context of predefined functions.
   freshCounter :: Int -- A counter to generate fresh vars.
 }
 
@@ -21,7 +21,7 @@ instance Show SynthesisState where
 initialState :: Ctxt -> SynthesisState
 initialState g = SynthesisState {
   prog = Zipper.empty,
-  global = g,
+  groundCtxt = g,
   freshCounter = 0
 }
 
@@ -31,6 +31,8 @@ data Action =
   Jump Int           |
   Exit               |
   Intro String       |
+  Cases              |
+  GenApply           |
   UnknownAction
 
 -- | A substitution is a map from unification type variable
@@ -114,8 +116,8 @@ nodeSubst s node =
     _ -> node
 
 -- | Given a tree-zipper and a substitution, propagates the substitution through the tree.
-propagateSubst :: Substitution -> TreeZipper NodeInfo -> TreeZipper NodeInfo
-propagateSubst s = fmap (nodeSubst s)
+propagateSubstTree :: Substitution -> TreeZipper NodeInfo -> TreeZipper NodeInfo
+propagateSubstTree s = fmap (nodeSubst s)
 
 
 {-
@@ -194,20 +196,20 @@ anyHole ss =
             then Nothing
             else anyHoleRight (nextDefn ss')
 
--- | Action: get the index of the current hole in focus.
-currentHole :: SynthesisState -> Maybe Int
-currentHole ss =
+-- | Action: get the data of the current hole in focus.
+holeData :: SynthesisState -> Maybe (Int, Type)
+holeData ss =
   case getFocus (prog ss) of
     Nothing -> Nothing
     Just tp ->
       case getFocusInfo (expr tp) of
-        Just (Hole k _) -> Just k
+        Just (Hole k t) -> Just (k, t)
         _ -> Nothing
 
 showCurrentHole :: SynthesisState -> String
 showCurrentHole ss =
-  case currentHole ss of
-    Just k -> show k
+  case holeData ss of
+    Just (k, _) -> show k
     Nothing -> "N/A"
     
 -- | Defines a new top-level 'let' at the end of the program,
@@ -245,3 +247,39 @@ replace rf ss =
           Nothing -> newSs
           Just ss' -> ss'
       _ -> descendFocus newSs
+
+-- | Obtains the name of the current definition in focus.
+getDefnName :: SynthesisState -> Maybe String
+getDefnName ss =
+  case getFocus (prog ss) of
+    Nothing -> Nothing
+    Just tp -> Just (name tp)
+
+-- | Checks whether the focus is in a recursive definition.
+isRecDefn :: SynthesisState -> Bool
+isRecDefn ss =
+  case getFocus (prog ss) of
+    Nothing -> False
+    Just tp -> (isRec tp)
+
+-- | Obtains the global context at the current focus.
+globalCtxt :: SynthesisState -> Ctxt
+globalCtxt ss =
+  let
+    fullCtxt = Map.union (groundCtxt ss) (inducedGlobal $ prog ss)
+  in
+    if isRecDefn ss
+      then fullCtxt
+      else
+        case getDefnName ss of
+          Nothing -> fullCtxt
+          Just n -> Map.delete n fullCtxt
+
+-- | Obtains the local context at the current focus.
+localCtxt :: SynthesisState -> Ctxt
+localCtxt ss = getLocal (getProgFocus ss)
+
+-- | Propagate the substitution through the whole definition.
+propagateSubstitution :: Substitution -> SynthesisState -> SynthesisState
+propagateSubstitution subst ss = replaceDefn (propagateSubstTree subst $ getProgFocus ss) ss
+
