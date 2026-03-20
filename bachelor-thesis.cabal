@@ -60,7 +60,8 @@ library
     -- Modules exported by the library.
     exposed-modules:  Zipper,
                       AST,
-                      Synthesis
+                      Synthesis,
+                      Parsing
 
     -- Modules included in this library but not exported.
     -- other-modules:
@@ -71,7 +72,8 @@ library
     -- Other library packages from which modules are imported.
     build-depends:    base ^>=4.18.3.0,
                       containers,
-                      mtl
+                      mtl,
+                      parsec
 
     -- Directories containing source files.
     hs-source-dirs:   src

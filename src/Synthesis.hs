@@ -12,7 +12,24 @@ data SynthesisState = SynthesisState {
   freshCounter :: Int -- A counter to generate fresh vars.
 }
 
+instance Show SynthesisState where
+  show ss =
+    "Current hole: " ++ (showCurrentHole ss) ++ "\n" ++
+    (show $ prog ss) 
 
+initialState :: Ctxt -> SynthesisState
+initialState g = SynthesisState {
+  prog = Zipper.empty,
+  global = g,
+  freshCounter = 0
+}
+
+data Action = 
+  Let String Type    | 
+  Letrec String Type |
+  Jump Int           |
+  Exit               |
+  UnknownAction
 
 -- | A substitution is a map from unification type variable
 -- indices to types.
@@ -177,6 +194,12 @@ currentHole ss =
       case getFocusInfo (expr tp) of
         Just (Hole k _) -> Just k
         _ -> Nothing
+
+showCurrentHole :: SynthesisState -> String
+showCurrentHole ss =
+  case currentHole ss of
+    Just k -> show k
+    Nothing -> "N/A"
     
 -- | Defines a new top-level 'let' at the end of the program,
 -- given its name and its type.
