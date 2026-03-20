@@ -1,10 +1,11 @@
-module Synthesis where
+module StateHandling where
 
 import AST
 import Control.Monad.State
 import Data.Map as Map
 import Data.Set as Set
 import Zipper
+
 
 data SynthesisState = SynthesisState {
   prog :: Program, -- The zipper.
@@ -29,6 +30,7 @@ data Action =
   Letrec String Type |
   Jump Int           |
   Exit               |
+  Intro String       |
   UnknownAction
 
 -- | A substitution is a map from unification type variable
@@ -152,6 +154,13 @@ replaceDefn tz ss =
     Nothing -> ss
     Just tp -> ss { prog = Zipper.put (replaceExpr tz tp) (prog ss) }
 
+-- | Action: get the current tree-zipper in focus.
+getProgFocus :: SynthesisState -> TreeZipper NodeInfo
+getProgFocus ss =
+  case getFocus (prog ss) of
+    Nothing -> toTreeZipper EmptyTree
+    Just tp -> expr tp
+
 
 -- | Action: switch to a hole with a particular index, if possible.
 switchHole :: Int -> SynthesisState -> Maybe SynthesisState
@@ -215,9 +224,24 @@ newLetrec n t ss =
   ss { prog = append (letrecDefn n t (freshCounter ss)) (prog ss),
        freshCounter = (freshCounter ss) + 1 }
 
+-- | Moves the focus down in the current expression.
+descendFocus :: SynthesisState -> SynthesisState
+descendFocus ss = 
+  case getFocus (prog ss) of
+    Nothing -> ss
+    Just tp ->
+      replaceDefn (goDown (expr tp)) ss
 
-
-{-
-TO-DO: Define elementary actions, namely:
-4. Elementary replacement of leaves with trees.
--}
+-- | Replaces the current focus depending on the replacing action,
+-- then moving the focus to an appropriate place.
+replace :: ReplaceFocus -> SynthesisState -> SynthesisState
+replace rf ss =
+  let
+    newSs = replaceDefn (rfTreeZipper rf (getProgFocus ss)) ss
+  in
+    case rf of
+      ToVar _ ->
+        case anyHole newSs of
+          Nothing -> newSs
+          Just ss' -> ss'
+      _ -> descendFocus newSs

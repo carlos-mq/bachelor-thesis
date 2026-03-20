@@ -1,7 +1,16 @@
 module Main where
 
+import Zipper
+import AST
+import StateHandling
+import Parsing
+import System.IO
+import qualified Data.Map as Map
+
 prompt :: String -> IO String
 prompt text = do
+  hSetBuffering stdin LineBuffering
+  hSetBuffering stdout NoBuffering
   putStr text
   hFlush stdout
   getLine
@@ -20,7 +29,7 @@ readAction ss = do
     Jump k ->
       case (switchHole k ss) of
         Just ss' -> display ss'
-        Nothing ->
+        Nothing -> do
           putStrLn "Unknown hole. Try again."
           readAction ss
     Exit -> return ()
@@ -32,4 +41,4 @@ display ss = do
 
 main :: IO ()
 main = do
-  readAction (initialState empty)
+  readAction (initialState Map.empty)

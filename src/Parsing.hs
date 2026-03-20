@@ -6,7 +6,7 @@ import qualified Data.Set as ST
 import Data.List
 
 import AST
-import Synthesis
+import StateHandling
 
 import Text.Parsec
 import Text.Parsec.String

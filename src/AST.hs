@@ -26,6 +26,40 @@ data NodeInfo =
   Pair               |
   Ifte 
 
+-- | Elementary actions for replacing the focus
+-- of an expression (tree-zipper)
+data ReplaceFocus =
+  ToVar String                      | -- ToVar s: replace with variable of name s
+  ToLambda String Type Int Type     | -- ToLambda x t1 k t2: replace with \(x : t1) |-> (-#k : t2)
+  ToApp Int Type Int Type           | -- ToApp n t1 m t2: replace with (-#n : t1) (-#m : t2)
+  ToPair Int Type Int Type          | -- ToPair n t1 m t2: replace with (-#n : t1, -#m : t2)
+  ToIfte Int Type Int Type Int Type  -- ToIfte l t1 n t2 m t3: replace with if (-#l : t1) then (-#n : t2) else (-#m : t3)
+
+-- | Convert a list of nodes into a list-zipper of singleton trees with
+-- these as roots.
+nodesToLZ :: [NodeInfo] -> ListZipper (Tree NodeInfo)
+nodesToLZ nodes =
+  toListZipper $ map (\n -> (Tree n empty)) nodes
+
+
+-- | Obtain the tree corresponding to a replacement action.
+rfToTree :: ReplaceFocus -> Tree NodeInfo
+rfToTree rf =
+  case rf of
+    ToVar s -> Tree (Var s) empty
+    ToLambda x t1 k t2 -> Tree (Lambda x t1) (nodesToLZ [Hole k t2])
+    ToApp n t1 m t2 -> Tree App (nodesToLZ [Hole n t1, Hole m t2])
+    ToPair n t1 m t2 -> Tree Pair (nodesToLZ [Hole n t1, Hole m t2])
+    ToIfte l t1 n t2 m t3 -> Tree Ifte (nodesToLZ [Hole l t1, Hole n t2, Hole m t3])
+
+-- | Replace the focus of a tree-zipper, given a replacement action.
+rfTreeZipper :: ReplaceFocus -> TreeZipper NodeInfo -> TreeZipper NodeInfo
+rfTreeZipper rf tz = putTree (rfToTree rf) tz
+
+
+
+
+
 -- Notice:
 -- There's no need to keep track of local contexts
 -- in the TopLevel, since these can be quickly
@@ -60,10 +94,15 @@ letrecDefn n t ix = TopLevel {
   isRec = True
 }
 
+
 -- | Replace the expression of a top-level
 -- with another.
 replaceExpr :: TreeZipper NodeInfo -> TopLevel -> TopLevel
 replaceExpr tz tl = tl { expr = tz }
+
+-- | Replace the focus of a top-level, given a replacement action
+rfTopLevel :: ReplaceFocus -> TopLevel -> TopLevel
+rfTopLevel rf tl = replaceExpr (putTree (rfToTree rf) (expr tl)) tl
 
 type Program = ListZipper TopLevel
 
@@ -126,7 +165,7 @@ instance Show Type where
       List t1 -> "[" ++ show t1 ++ "]"
       Func t1 t2 -> show t1 ++ " → " ++ show t2
       Prod t1 t2 -> show t1 ++ " × " ++ show t2
-      TypeVar s -> show s
+      TypeVar s -> s
       UVar k -> "?" ++ show k
 
 -- | Auxiliary functions for pretty-printing expressions.
