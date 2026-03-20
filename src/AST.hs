@@ -38,9 +38,32 @@ data TopLevel = TopLevel {
   isRec :: Bool
 }
 
--- To-do: Propagating a substitution throughout a top-level.
--- To-do: Unification of types.
--- To-do: Functions to get global and local contexts.
+-- | Constructs a top-level 'let',
+-- given a name, a type, and the index
+-- of its hole.
+letDefn :: String -> Type -> Int -> TopLevel
+letDefn n t ix = TopLevel {
+  name = n,
+  tlType = t,
+  expr = toTreeZipper (Tree (Hole ix t) empty),
+  isRec = False
+}
+
+-- | Constructs a top-level 'letrec',
+-- given a name, a type, and the index
+-- of its hole.
+letrecDefn :: String -> Type -> Int -> TopLevel
+letrecDefn n t ix = TopLevel {
+  name = n,
+  tlType = t,
+  expr = toTreeZipper (Tree (Hole ix t) empty),
+  isRec = True
+}
+
+-- | Replace the expression of a top-level
+-- with another.
+replaceExpr :: TreeZipper NodeInfo -> TopLevel -> TopLevel
+replaceExpr tz tl = tl { expr = tz }
 
 type Program = ListZipper TopLevel
 
@@ -48,8 +71,8 @@ type Program = ListZipper TopLevel
 -- all holes found at or below the focus, along with indices.
 -- Assumes the following invariant: there are no holes that are
 -- ancestors of other holes.
-getHoles :: TreeZipper NodeInfo -> [(Int, TreeZipper NodeInfo)]
-getHoles tz =
+getHolesBelow :: TreeZipper NodeInfo -> [(Int, TreeZipper NodeInfo)]
+getHolesBelow tz =
   case getFocusInfo tz of
     Just (Hole index _) -> [(index, tz)]
     Nothing -> []
@@ -64,8 +87,20 @@ getHoles tz =
 getHolesRight :: TreeZipper NodeInfo -> [(Int, TreeZipper NodeInfo)]
 getHolesRight tz =
   if hasRight tz
-    then getHoles tz ++ getHolesRight (goRight tz)
-    else getHoles tz
+    then getHolesBelow tz ++ getHolesRight (goRight tz)
+    else getHolesBelow tz
+
+-- | Given a tree-zipper, returns tree-zippers to all holes found
+-- somewhere in the tree.
+getHoles :: TreeZipper NodeInfo -> [(Int, TreeZipper NodeInfo)]
+getHoles tz = getHolesBelow $ toTreeZipper $ toRoot tz
+
+-- | Maybe-friendly getHoles.
+getHoles' :: Maybe (TreeZipper NodeInfo) -> [(Int, TreeZipper NodeInfo)]
+getHoles' mtz =
+  case mtz of
+    Nothing -> []
+    Just tz -> getHoles tz
 
 
 -- | Given a tree-zipper, obtain the local context at the focus.

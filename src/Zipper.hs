@@ -48,6 +48,8 @@ class OneDimensional f where
   -- | Determines whether there's an element to the left.
   hasLeft :: f t -> Bool
 
+
+
 -- | Moves the focus to the leftmost possible position.
 fullLeft :: (OneDimensional f) => f t -> f t
 fullLeft x =
@@ -85,6 +87,12 @@ instance OneDimensional ListZipper where
     case z of
       ListZipper (_ : _) _ _ -> True
       _ -> False
+
+instance Functor ListZipper where
+  fmap f lz =
+    case lz of
+      Empty -> Empty
+      ListZipper ls c rs -> ListZipper (map f ls) (f c) (map f rs)
 
 
 -- | Gets the list of elements to the left of the focus.
@@ -134,6 +142,12 @@ put x zx =
 -- along with a list-zipper of its children.
 data Tree t = Tree t (ListZipper (Tree t)) | EmptyTree
 
+instance Functor Tree where
+  fmap f t =
+    case t of
+      EmptyTree -> EmptyTree
+      Tree x cs -> Tree (f x) (fmap (\tree -> fmap f tree) cs)
+
 -- | Gets the internal information of the root of a tree.
 getRoot :: Tree t -> Maybe t
 getRoot (Tree x _) = Just x
@@ -155,6 +169,12 @@ getChildrenList t =
 -- a node, along with its left-siblings and
 -- right-siblings.
 data TreeCtxt t = TreeCtxt [Tree t] t [Tree t] | EmptyCtxt
+
+instance Functor TreeCtxt where
+  fmap f tc =
+    case tc of
+      EmptyCtxt -> EmptyCtxt
+      TreeCtxt ls c rs -> TreeCtxt (map (fmap f) ls) (f c) (map (fmap f) rs)
 
 type Path t = [TreeCtxt t]
 
@@ -198,6 +218,13 @@ instance OneDimensional TreeZipper where
   goRight tz = tz { siblingZipper = goRight (siblingZipper tz) }
   hasRight tz = hasRight (siblingZipper tz)
   hasLeft tz =  hasLeft (siblingZipper tz)
+
+instance Functor TreeZipper where
+  fmap f tz = TreeZipper {
+    siblingZipper = fmap (fmap f) (siblingZipper tz),
+    path = map (fmap f) (path tz)
+  }
+
 
 -- | Get the subtree at the focus of the tree-zipper.
 getFocusSubtree :: TreeZipper t -> Tree t
