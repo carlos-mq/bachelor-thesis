@@ -30,7 +30,7 @@ toList :: ListZipper t -> [t]
 toList lz =
   case lz of
     Empty -> []
-    ListZipper ls f rs -> ls ++ [f] ++ rs
+    ListZipper ls f rs -> (reverse ls) ++ [f] ++ rs
 
 -- | Gives a list-zipper containing only the specified element.
 singleton :: t -> ListZipper t
@@ -293,6 +293,8 @@ toRoot tz =
       Empty -> EmptyTree
       ListZipper _ tree _ -> tree
     _ -> toRoot (goUp tz)
+
+
 
 -- | In a given tree-zipper, replace the current focus with a tree
 -- rooted at this focus.

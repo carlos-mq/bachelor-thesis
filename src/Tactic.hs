@@ -19,7 +19,7 @@ runTactic tac ss =
     Nothing -> ss
     Just (e, subst) ->
       let
-        newSs = propagateSubstitution subst $ replace e ss
+        newSs = replace e (propagateSubstitution subst ss)
       in
         newSs { freshCounter = freshCounter ss + counterShift tac }
 
@@ -67,7 +67,7 @@ genApply ss =
     ix = freshCounter ss
   in
     case holeData ss of
-      Just (_, t) -> Just (ToApp ix (Func (UVar (ix + 1)) t) (ix + 2) t, empty)
+      Just (_, t) -> Just (ToApp ix (Func (UVar (ix + 1)) t) (ix + 2) (UVar (ix + 1)), empty)
       _ -> Nothing
 
 genApplyTactic :: Tactic

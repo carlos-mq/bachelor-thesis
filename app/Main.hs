@@ -5,6 +5,7 @@ import AST
 import StateHandling
 import Parsing
 import Tactic
+import GroundContext
 import System.IO
 import qualified Data.Map as Map
 
@@ -44,13 +45,30 @@ readAction ss = do
     VarGlobal x -> do
       let shift = countTypeVarsInGlobal ss x
       display (runTactic (varGlobalTactic shift x) ss)
+    GroundContext -> do
+      putStrLn (showCtxt (groundCtxt ss))
+      readAction ss
+    GetFocus ->
+      case (getFocusInfo $ getProgFocus ss) of
+        Just f -> do 
+          putStrLn (show f)
+          readAction ss
+        Nothing -> readAction ss
+    DescendFocus ->
+      display (descendFocus ss)
+    AscendFocus ->
+      display (ascendFocus ss)
+    GoLeft ->
+      display (leftFocus ss)
+    GoRight ->
+      display (rightFocus ss)
     Exit -> return ()
 
 display :: SynthesisState -> IO ()
 display ss = do
-  putStrLn (show ss)
+  print ss
   readAction ss
 
 main :: IO ()
 main = do
-  readAction (initialState Map.empty)
+  readAction (initialState groundContext)

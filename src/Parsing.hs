@@ -169,6 +169,18 @@ parseAction = do
     "varGlobal" -> do
       name <- nextWord
       return (VarGlobal name)
+    "groundContext" ->
+      return GroundContext
+    "getFocus" ->
+      return GetFocus
+    "descendFocus" ->
+      return DescendFocus
+    "ascendFocus" ->
+      return AscendFocus
+    "goLeft" ->
+      return GoLeft
+    "goRight" ->
+      return GoRight
     _ -> fail "Unknown command!"
 
 

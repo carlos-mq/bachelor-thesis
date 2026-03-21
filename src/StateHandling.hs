@@ -35,6 +35,12 @@ data Action =
   GenApply           |
   VarLocal String    |
   VarGlobal String   |
+  GroundContext      |
+  GetFocus           | -- Debugging
+  DescendFocus       |
+  AscendFocus        |
+  GoLeft             |
+  GoRight            |
   UnknownAction
 
 -- | A substitution is a map from unification type variable
@@ -90,7 +96,6 @@ unify :: Constraint -> Maybe Substitution
 unify [] = Just Map.empty
 unify (c : cs) =
   case c of
-    (t, UVar k) -> unify $ (UVar k, t) : cs
     (UVar k, t) ->
       if Set.member k (findUnifVars t)
         then Nothing
@@ -101,6 +106,7 @@ unify (c : cs) =
             case unify newConstraints of
               Nothing -> Nothing
               Just subst -> Just $ composeSubst subst (Map.singleton k t)
+    (t, UVar k) -> unify $ (UVar k, t) : cs
     (Prod t1 t2, Prod t1' t2') -> unify $ (t1, t1') : (t2, t2') : cs
     (Func t1 t2, Func t1' t2') -> unify $ (t1, t1') : (t2, t2') : cs
     (List t1, List t1') -> unify $ (t1, t1') : cs
@@ -218,8 +224,10 @@ showCurrentHole ss =
 -- given its name and its type.
 newLet :: String -> Type -> SynthesisState -> SynthesisState
 newLet n t ss =
-  ss { prog = append (letDefn n t (freshCounter ss)) (prog ss),
-       freshCounter = (freshCounter ss) + 1 }
+  ss { 
+      prog = append (letDefn n t (freshCounter ss)) (prog ss),
+      freshCounter = (freshCounter ss) + 1 
+       }
 
 -- | Defines a new top-level 'letrec' at the end of the program,
 -- given its name and its type.
@@ -235,6 +243,30 @@ descendFocus ss =
     Nothing -> ss
     Just tp ->
       replaceDefn (goDown (expr tp)) ss
+
+-- | Moves the focus up in the current expression.
+ascendFocus :: SynthesisState -> SynthesisState
+ascendFocus ss =
+  case getFocus (prog ss) of
+    Nothing -> ss
+    Just tp ->
+      replaceDefn (goUp (expr tp)) ss
+
+-- | Moves the focus left.
+leftFocus :: SynthesisState -> SynthesisState
+leftFocus ss =
+  case getFocus (prog ss) of
+    Nothing -> ss
+    Just tp ->
+      replaceDefn (goLeft (expr tp)) ss
+
+-- | Moves the focus right.
+rightFocus :: SynthesisState -> SynthesisState
+rightFocus ss =
+  case getFocus (prog ss) of
+    Nothing -> ss
+    Just tp ->
+      replaceDefn (goRight (expr tp)) ss
 
 -- | Replaces the current focus depending on the replacing action,
 -- then moving the focus to an appropriate place.
@@ -256,6 +288,13 @@ getDefnName ss =
   case getFocus (prog ss) of
     Nothing -> Nothing
     Just tp -> Just (name tp)
+
+-- | Obtains the type of the current definition in focus.
+getDefnData :: SynthesisState -> Maybe (String, Type)
+getDefnData ss =
+  case getFocus (prog ss) of
+    Nothing -> Nothing
+    Just tp -> Just (name tp, tlType tp)
 
 -- | Checks whether the focus is in a recursive definition.
 isRecDefn :: SynthesisState -> Bool
@@ -279,7 +318,15 @@ globalCtxt ss =
 
 -- | Obtains the local context at the current focus.
 localCtxt :: SynthesisState -> Ctxt
-localCtxt ss = getLocal (getProgFocus ss)
+localCtxt ss =
+  let
+    l = getLocal (getProgFocus ss)
+  in
+    case getDefnData ss of
+      Nothing -> l
+      Just (n, t) ->
+        Map.insert n t l
+
 
 -- | Obtains the number of distinct type variables in the
 -- type of a given variable, in the local context.
@@ -299,3 +346,4 @@ countTypeVarsInGlobal ss varName =
 propagateSubstitution :: Substitution -> SynthesisState -> SynthesisState
 propagateSubstitution subst ss = replaceDefn (propagateSubstTree subst $ getProgFocus ss) ss
 
+-- | 

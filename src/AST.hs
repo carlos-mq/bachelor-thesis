@@ -72,7 +72,8 @@ data NodeInfo =
   Lambda String Type |
   App                |
   Pair               |
-  Ifte 
+  Ifte
+  deriving (Show)
 
 -- | Elementary actions for replacing the focus
 -- of an expression (tree-zipper)
@@ -281,6 +282,14 @@ Program-wide utilities
 -- | Given a program, obtain a pretty-printed representation.
 instance Show Program where
   show prog = unlines $ List.map show (Zipper.toList prog)
+
+showCtxt :: Ctxt -> String
+showCtxt ctxt =
+  let
+    annotations = List.map (\(n, t) -> n ++ " : " ++ (show t) ++ "\n")(Map.toList ctxt)
+  in
+    "{" ++ concat annotations ++ "}"
+
 
 -- | Obtain the global context induced by a program.
 inducedGlobal :: Program -> Ctxt
