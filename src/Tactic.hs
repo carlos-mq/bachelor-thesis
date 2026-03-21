@@ -78,8 +78,10 @@ genApplyTactic = Tactic {
   counterShift = 3
 }
 
--- | The 'var' tactic
--- Under the hood, distinguish between global and local versions.
+-- | The 'var' tactics
+
+-- | VarGlobal requires knowing the counter shift beforehand,
+-- since it depends on the actual type of the parameter.
 varGlobal :: String -> SynthesisState -> Maybe (Expression, Substitution)
 varGlobal varName ss =
   case holeData ss of

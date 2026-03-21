@@ -39,6 +39,11 @@ readAction ss = do
       display (runTactic casesTactic ss)
     GenApply ->
       display (runTactic genApplyTactic ss)
+    VarLocal x -> 
+      display (runTactic (varLocalTactic x) ss)
+    VarGlobal x -> do
+      let shift = countTypeVarsInGlobal ss x
+      display (runTactic (varGlobalTactic shift x) ss)
     Exit -> return ()
 
 display :: SynthesisState -> IO ()

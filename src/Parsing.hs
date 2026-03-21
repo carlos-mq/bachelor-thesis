@@ -163,6 +163,12 @@ parseAction = do
       return Cases
     "genApply" -> do
       return GenApply
+    "varLocal" -> do
+      name <- nextWord
+      return (VarLocal name)
+    "varGlobal" -> do
+      name <- nextWord
+      return (VarGlobal name)
     _ -> fail "Unknown command!"
 
 

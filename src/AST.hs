@@ -27,6 +27,16 @@ typeVars t =
     TypeVar s -> Set.singleton s
     _ -> Set.empty
 
+-- | Given a type, counts the number of distinct type variables.
+countTypeVars :: Type -> Int
+countTypeVars t = Set.size (typeVars t)
+
+-- | Given a maybe-type, counts the number of distinct type variables;
+-- if Nothing, defaults to 0.
+maybeCountTypeVars :: Maybe Type -> Int
+maybeCountTypeVars =  maybe 0 countTypeVars
+
+
 -- | Given a type and a starting index, provides a map of
 -- type variable names to appropriate indices.
 indexTypeVars :: Int -> Type -> Map String Int

@@ -33,6 +33,8 @@ data Action =
   Intro String       |
   Cases              |
   GenApply           |
+  VarLocal String    |
+  VarGlobal String   |
   UnknownAction
 
 -- | A substitution is a map from unification type variable
@@ -278,6 +280,20 @@ globalCtxt ss =
 -- | Obtains the local context at the current focus.
 localCtxt :: SynthesisState -> Ctxt
 localCtxt ss = getLocal (getProgFocus ss)
+
+-- | Obtains the number of distinct type variables in the
+-- type of a given variable, in the local context.
+-- If this variable isn't present in the context, defaults to 0.
+countTypeVarsInLocal :: SynthesisState -> String -> Int
+countTypeVarsInLocal ss varName = 
+  maybeCountTypeVars (Map.lookup varName (localCtxt ss))
+
+-- | Obtains the number of distinct type variables in the
+-- type of a given variable, in the global context.
+-- If this variable isn't present in the context, defaults to 0.
+countTypeVarsInGlobal :: SynthesisState -> String -> Int
+countTypeVarsInGlobal ss varName =
+  maybeCountTypeVars (Map.lookup varName (globalCtxt ss))
 
 -- | Propagate the substitution through the whole definition.
 propagateSubstitution :: Substitution -> SynthesisState -> SynthesisState
