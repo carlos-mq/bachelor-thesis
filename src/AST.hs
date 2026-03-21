@@ -2,9 +2,10 @@
 module AST where
 
 import Zipper
-import Data.Map (Map)
+import Data.Map as Map
 import Data.Map.Lazy (fromList)
-import Data.List
+import Data.List as List
+import Data.Set as Set
 
 data Type =
    B              |
@@ -15,6 +16,43 @@ data Type =
    TypeVar String |
    UVar Int
    deriving Eq
+
+-- | Given a type, returns a set of all its type variables.
+typeVars :: Type -> Set String
+typeVars t =
+  case t of
+    Prod t1 t2 -> Set.union (typeVars t1) (typeVars t2)
+    Func t1 t2 -> Set.union (typeVars t1) (typeVars t2)
+    List t1 -> typeVars t1
+    TypeVar s -> Set.singleton s
+    _ -> Set.empty
+
+-- | Given a type and a starting index, provides a map of
+-- type variable names to appropriate indices.
+indexTypeVars :: Int -> Type -> Map String Int
+indexTypeVars ix t =
+  Map.fromList $ zip (Set.toList (typeVars t)) [ix..]
+
+-- | Substitutes all type variables with unification variables,
+-- given a map of names to indices.
+tVarToUVar :: Map String Int -> Type -> Type
+tVarToUVar varMap t =
+  case t of
+    TypeVar s ->
+      case Map.lookup s varMap of
+        Nothing -> t
+        Just k -> UVar k
+    Prod t1 t2 -> Prod (tVarToUVar varMap t1) (tVarToUVar varMap t2)
+    Func t1 t2 -> Func (tVarToUVar varMap t1) (tVarToUVar varMap t2)
+    List t1 -> List (tVarToUVar varMap t1)
+    _ -> t
+
+-- | Given a type and a starting index,
+-- substitutes all type variables with unification variables
+-- of appropriate index; also returns the resulting index shift.
+uSub :: Int -> Type -> Type
+uSub ix t = tVarToUVar (indexTypeVars ix t) t
+
 
 type Ctxt = Map String Type
 
@@ -39,14 +77,14 @@ data ReplaceFocus =
 -- these as roots.
 nodesToLZ :: [NodeInfo] -> ListZipper (Tree NodeInfo)
 nodesToLZ nodes =
-  toListZipper $ map (\n -> (Tree n empty)) nodes
+  toListZipper $ List.map (\n -> (Tree n Zipper.empty)) nodes
 
 
 -- | Obtain the tree corresponding to a replacement action.
 rfToTree :: ReplaceFocus -> Tree NodeInfo
 rfToTree rf =
   case rf of
-    ToVar s -> Tree (Var s) empty
+    ToVar s -> Tree (Var s) Zipper.empty
     ToLambda x t1 k t2 -> Tree (Lambda x t1) (nodesToLZ [Hole k t2])
     ToApp n t1 m t2 -> Tree App (nodesToLZ [Hole n t1, Hole m t2])
     ToPair n t1 m t2 -> Tree Pair (nodesToLZ [Hole n t1, Hole m t2])
@@ -79,7 +117,7 @@ letDefn :: String -> Type -> Int -> TopLevel
 letDefn n t ix = TopLevel {
   name = n,
   tlType = t,
-  expr = toTreeZipper (Tree (Hole ix t) empty),
+  expr = toTreeZipper (Tree (Hole ix t) Zipper.empty),
   isRec = False
 }
 
@@ -90,7 +128,7 @@ letrecDefn :: String -> Type -> Int -> TopLevel
 letrecDefn n t ix = TopLevel {
   name = n,
   tlType = t,
-  expr = toTreeZipper (Tree (Hole ix t) empty),
+  expr = toTreeZipper (Tree (Hole ix t) Zipper.empty),
   isRec = True
 }
 
@@ -149,9 +187,9 @@ getHoles' mtz =
 getLocal :: TreeZipper NodeInfo -> Ctxt
 getLocal tz =
   let
-    ancestorInfo = map (\(TreeCtxt _ x _) -> x) (path tz)
+    ancestorInfo = List.map (\(TreeCtxt _ x _) -> x) (path tz)
   in
-    fromList (filterLambdas ancestorInfo)
+    Map.fromList (filterLambdas ancestorInfo)
     where
       filterLambdas [] = []
       filterLambdas (p : ps) =
@@ -191,7 +229,7 @@ showThird xs =
     _ -> ""
 
 tab :: String -> String
-tab s = unlines $ map (" " ++) $ lines s
+tab s = unlines $ List.map (" " ++) $ lines s
 
 -- | Given an expression in tree form, obtains a pretty-printed representation.
 -- It ignores any nodes below variables and holes.
@@ -232,10 +270,10 @@ Program-wide utilities
 
 -- | Given a program, obtain a pretty-printed representation.
 instance Show Program where
-  show prog = unlines $ map show (toList prog)
+  show prog = unlines $ List.map show (Zipper.toList prog)
 
 -- | Obtain the global context induced by a program.
 inducedGlobal :: Program -> Ctxt
 inducedGlobal prog =
-  fromList $ toList (fmap getTypeAnnotation prog)
+  Map.fromList $ Zipper.toList (fmap getTypeAnnotation prog)
 

@@ -2,7 +2,7 @@ module Tactic where
 
 import AST
 import StateHandling
-import Data.Map (empty)
+import Data.Map as Map
 
 type Expression = ReplaceFocus
 
@@ -77,3 +77,51 @@ genApplyTactic = Tactic {
   willPropagate = False,
   counterShift = 3
 }
+
+-- | The 'var' tactic
+-- Under the hood, distinguish between global and local versions.
+varGlobal :: String -> SynthesisState -> Maybe (Expression, Substitution)
+varGlobal varName ss =
+  case holeData ss of
+    Just (_, t) ->
+      case Map.lookup varName (globalCtxt ss) of
+        Just varType ->
+          let
+            freshType = uSub (freshCounter ss) varType
+          in
+            case unify [(freshType, t)] of
+              Just subst -> Just (ToVar varName, subst)
+              _ -> Nothing
+        _ -> Nothing
+    _ -> Nothing
+
+
+varGlobalTactic :: Int -> (String -> Tactic)
+varGlobalTactic shift varName = Tactic {
+  tacticName = "varGlobal " ++ varName,
+  tactic = varGlobal varName,
+  willPropagate = True,
+  counterShift = shift
+}
+
+varLocal :: String -> SynthesisState -> Maybe (Expression, Substitution)
+varLocal varName ss =
+  case holeData ss of
+    Just (_, t) ->
+      case Map.lookup varName (localCtxt ss) of
+        Just varType ->
+          case unify [(varType, t)] of
+            Just subst -> Just (ToVar varName, subst)
+            _ -> Nothing
+        _ -> Nothing
+    _ -> Nothing
+
+varLocalTactic :: String -> Tactic
+varLocalTactic varName = Tactic {
+  tacticName = "varLocal " ++ varName,
+  tactic = varLocal varName,
+  willPropagate = False,
+  counterShift = 0
+}
+
+-- To-do: add VarLocal and VarGlobal to the IO.
