@@ -125,5 +125,3 @@ varLocalTactic varName = Tactic {
   willPropagate = False,
   counterShift = 0
 }
-
--- To-do: add VarLocal and VarGlobal to the IO.

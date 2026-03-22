@@ -63,7 +63,8 @@ library
                       StateHandling,
                       Parsing,
                       Tactic,
-                      GroundContext
+                      GroundContext,
+                      Printing
 
     -- Modules included in this library but not exported.
     -- other-modules:

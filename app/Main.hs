@@ -6,6 +6,7 @@ import StateHandling
 import Parsing
 import Tactic
 import GroundContext
+import Printing
 import System.IO
 import qualified Data.Map as Map
 

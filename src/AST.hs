@@ -1,4 +1,3 @@
-{-# LANGUAGE FlexibleInstances #-}
 module AST where
 
 import Zipper
@@ -220,75 +219,9 @@ instance Show Type where
       TypeVar s -> s
       UVar k -> "?" ++ show k
 
--- | Auxiliary functions for pretty-printing expressions.
-showFirst :: (Show t) => [t] -> String 
-showFirst xs =
-  case xs of 
-    x : _ -> show x
-    _ -> ""
-
-showSecond :: (Show t) => [t] -> String
-showSecond xs =
-  case xs of
-    _ : y : _ -> show y
-    _ -> ""
-
-showThird :: (Show t) => [t] -> String
-showThird xs =
-  case xs of
-    _ : _ : z : _ -> show z
-    _ -> ""
-
-tab :: String -> String
-tab s = unlines $ List.map (" " ++) $ lines s
-
--- | Given an expression in tree form, obtains a pretty-printed representation.
--- It ignores any nodes below variables and holes.
-instance Show (Tree NodeInfo) where
-  show expr =
-    case getRoot expr of
-      Nothing -> ""
-      Just (Var s) -> s
-      Just (Hole id t) -> "( -#" ++ show id ++ " : " ++ show t ++ ")"
-      Just (Lambda s t) -> "λ(" ++ s ++ " : " ++ show t ++ ") ↦ \n" ++ (tab $ fstChild)
-      Just App -> "(" ++ fstChild ++ ") (" ++ sndChild ++ ")"
-      Just Pair -> "(" ++ fstChild ++ ", " ++ sndChild ++ ")"
-      Just Ifte ->
-        "if (" ++ fstChild ++ ")\n" ++
-        tab ( "then (" ++ sndChild ++ ")\n")
-        ++ "else (" ++ thrdChild ++ ")"
-    where
-      fstChild = showFirst $ getChildrenList expr
-      sndChild = showSecond $ getChildrenList expr
-      thrdChild = showThird $ getChildrenList expr
-
--- | Given an expression in tree-zipper form, obtains a pretty-printed representation.
--- Uses the tree form representation from the root.
-instance Show (TreeZipper NodeInfo) where
-  show e = show (toRoot e)
-
--- | Given a full top-level expression, obtains a pretty-printed representation.
-instance Show TopLevel where
-  show tl =
-    let
-      defName = if isRec tl then "letrec" else "let"
-    in
-      defName ++ " (" ++ name tl ++ " : " ++ show (tlType tl) ++ ") =\n" ++ tab (show (expr tl)) ++ "\n"
-
 {-
 Program-wide utilities
 -}
-
--- | Given a program, obtain a pretty-printed representation.
-instance Show Program where
-  show prog = unlines $ List.map show (Zipper.toList prog)
-
-showCtxt :: Ctxt -> String
-showCtxt ctxt =
-  let
-    annotations = List.map (\(n, t) -> n ++ " : " ++ (show t) ++ "\n")(Map.toList ctxt)
-  in
-    "{" ++ concat annotations ++ "}"
 
 
 -- | Obtain the global context induced by a program.

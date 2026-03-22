@@ -5,6 +5,7 @@ import Control.Monad.State
 import Data.Map as Map
 import Data.Set as Set
 import Zipper
+import Printing
 
 
 data SynthesisState = SynthesisState {
