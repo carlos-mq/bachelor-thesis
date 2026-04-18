@@ -8,7 +8,27 @@ import Tactic
 import GroundContext
 import Printing
 import System.IO
+import Complete
 import qualified Data.Map as Map
+
+{-
+Represents the output of the 'complete' function
+in a readable way.
+-}
+showComplete :: [(Tactic, ReplaceFocus)] -> String
+showComplete out =
+  let
+    indexed = zip [0..] out
+  in
+    concatMap (\(n, (tac, rf)) -> (show n) ++ ". " ++ (show rf) ++ " [ " ++ (tacticName tac) ++ " ]\n") indexed
+
+instance Show SynthesisState where
+  show ss =
+    let
+      completeList = showComplete (complete ss (tacticList ss))
+    in 
+    "Current hole: " ++ (showCurrentHole ss) ++ "\n" ++
+    (show $ prog ss) ++ "\n" ++ "Options: \n" ++ completeList
 
 prompt :: String -> IO String
 prompt text = do

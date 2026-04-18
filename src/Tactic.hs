@@ -10,9 +10,20 @@ data Tactic = Tactic {
   tacticName :: String, -- The name of the tactic.
   tactic :: SynthesisState -> Maybe (Expression, Substitution), -- The underlying function of the tactic.
   willPropagate  :: Bool, -- Whether the tactic propagates substitutions or not.
-  counterShift :: Int -- How much to increment the counter upon applying this tactic.
+  counterShift :: Int, -- How much to increment the counter upon applying this tactic.
+  ranking :: Int -- How useful the tactic is.
 }
 
+-- | Tries a tactic and possibly returns the synthesized
+-- expression.
+tryTactic :: SynthesisState -> Tactic -> Maybe Expression
+tryTactic ss tac =
+  case tactic tac ss of
+    Nothing -> Nothing
+    Just (e, _) -> Just e
+
+-- | Obtains the synthesis state resulting from running some
+-- tactic on the current one.
 runTactic :: Tactic -> SynthesisState -> SynthesisState
 runTactic tac ss =
   case tactic tac ss of
@@ -39,7 +50,8 @@ introTactic var = Tactic {
   tacticName = "intro " ++ var,
   tactic = intro var,
   willPropagate = False,
-  counterShift = 1
+  counterShift = 1,
+  ranking = 25
 }
 
 -- | The 'cases' tactic
@@ -57,7 +69,8 @@ casesTactic = Tactic {
   tacticName = "cases",
   tactic = cases,
   willPropagate = False,
-  counterShift = 3
+  counterShift = 3,
+  ranking = 17
 }
 
 -- | The 'general apply' tactic
@@ -75,7 +88,8 @@ genApplyTactic = Tactic {
   tacticName = "genApply",
   tactic = genApply,
   willPropagate = False,
-  counterShift = 3
+  counterShift = 3,
+  ranking = 15
 }
 
 -- | The 'var' tactics
@@ -103,7 +117,8 @@ varGlobalTactic shift varName = Tactic {
   tacticName = "varGlobal " ++ varName,
   tactic = varGlobal varName,
   willPropagate = True,
-  counterShift = shift
+  counterShift = shift,
+  ranking = 20
 }
 
 varLocal :: String -> SynthesisState -> Maybe (Expression, Substitution)
@@ -123,5 +138,6 @@ varLocalTactic varName = Tactic {
   tacticName = "varLocal " ++ varName,
   tactic = varLocal varName,
   willPropagate = False,
-  counterShift = 0
+  counterShift = 0,
+  ranking = 40
 }

@@ -5,7 +5,7 @@ import Control.Monad.State
 import Data.Map as Map
 import Data.Set as Set
 import Zipper
-import Printing
+
 
 
 data SynthesisState = SynthesisState {
@@ -13,11 +13,6 @@ data SynthesisState = SynthesisState {
   groundCtxt :: Ctxt, -- The context of predefined functions.
   freshCounter :: Int -- A counter to generate fresh vars.
 }
-
-instance Show SynthesisState where
-  show ss =
-    "Current hole: " ++ (showCurrentHole ss) ++ "\n" ++
-    (show $ prog ss) 
 
 initialState :: Ctxt -> SynthesisState
 initialState g = SynthesisState {
@@ -305,6 +300,11 @@ isRecDefn ss =
     Just tp -> (isRec tp)
 
 -- | Obtains the global context at the current focus.
+{-
+Remember: in the global context we should never have the
+current top-level.
+-}
+{-
 globalCtxt :: SynthesisState -> Ctxt
 globalCtxt ss =
   let
@@ -316,17 +316,36 @@ globalCtxt ss =
         case getDefnName ss of
           Nothing -> fullCtxt
           Just n -> Map.delete n fullCtxt
+          -}
+
+globalCtxt :: SynthesisState -> Ctxt
+globalCtxt ss =
+  let
+    fullCtxt = Map.union (groundCtxt ss) (inducedGlobal $ prog ss)
+  in
+    case getDefnName ss of
+        Nothing -> fullCtxt
+        Just n -> Map.delete n fullCtxt
 
 -- | Obtains the local context at the current focus.
+{-
+Remember: in the local context we should only have the
+current top-level IF it's recursive.
+-}
 localCtxt :: SynthesisState -> Ctxt
 localCtxt ss =
   let
     l = getLocal (getProgFocus ss)
   in
-    case getDefnData ss of
-      Nothing -> l
-      Just (n, t) ->
-        Map.insert n t l
+    if isRecDefn ss
+      then 
+        case getDefnData ss of
+          Nothing -> l
+          Just (n, t) ->
+            Map.insert n t l
+      else
+        l
+
 
 
 -- | Obtains the number of distinct type variables in the

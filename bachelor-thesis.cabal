@@ -64,7 +64,8 @@ library
                       Parsing,
                       Tactic,
                       GroundContext,
-                      Printing
+                      Printing,
+                      Complete
 
     -- Modules included in this library but not exported.
     -- other-modules:
