@@ -28,6 +28,8 @@ flattenTypes p =
 -}
 
 data PrintExpression =
+  PNum Int                              |
+  PBool Bool                            |
   PVar String                           |
   PHole Int Type                        |
   PLambda String Type PrintExpression   |
@@ -63,6 +65,8 @@ toPrint :: Tree NodeInfo -> PrintExpression
 toPrint t =
   case t of
     EmptyTree -> PNothing
+    Tree (Num n) _ -> PNum n
+    Tree (Boolean b) _ -> PBool b
     Tree (Var s) _ -> PVar s
     Tree (Hole k t) _ -> PHole k t
     Tree (Lambda s t) lz -> 
@@ -85,6 +89,8 @@ toPrint t =
 rfToPrint :: ReplaceFocus -> PrintExpression
 rfToPrint rf =
   case rf of
+    ToNum n -> PNum n
+    ToBool b -> PBool b
     ToVar s -> PVar s
     ToLambda x t1 k t2 -> PLambda x t1 (PHole k t2)
     ToApp k1 t1 k2 t2 -> PApp [PHole k1 t1, PHole k2 t2]
@@ -94,6 +100,8 @@ rfToPrint rf =
 instance Show PrintExpression where
   show p =
     case p of
+      PNum n -> show n
+      PBool b -> if b then "true" else "false"
       PVar s -> s
       PHole id t -> "(-#" ++ show id ++ " : " ++ show t ++ ")"
       PLambda s t p' -> "λ(" ++ s ++ " : " ++ show t ++ ") ↦ \n" ++ (tab $ show p')

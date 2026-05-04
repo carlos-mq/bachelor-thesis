@@ -71,12 +71,16 @@ data NodeInfo =
   Lambda String Type |
   App                |
   Pair               |
-  Ifte
+  Ifte               |
+  Num Int            |
+  Boolean Bool
   deriving (Show)
 
 -- | Elementary actions for replacing the focus
 -- of an expression (tree-zipper)
 data ReplaceFocus =
+  ToNum Int                         | -- ToNum n: replace with integer of value n
+  ToBool Bool                       | -- ToBool b: replace with Boolean of value b
   ToVar String                      | -- ToVar s: replace with variable of name s
   ToLambda String Type Int Type     | -- ToLambda x t1 k t2: replace with \(x : t1) |-> (-#k : t2)
   ToApp Int Type Int Type           | -- ToApp n t1 m t2: replace with (-#n : t1) (-#m : t2)
@@ -94,6 +98,8 @@ nodesToLZ nodes =
 rfToTree :: ReplaceFocus -> Tree NodeInfo
 rfToTree rf =
   case rf of
+    ToNum n -> Tree (Num n) Zipper.empty
+    ToBool b -> Tree (Boolean b) Zipper.empty
     ToVar s -> Tree (Var s) Zipper.empty
     ToLambda x t1 k t2 -> Tree (Lambda x t1) (nodesToLZ [Hole k t2])
     ToApp n t1 m t2 -> Tree App (nodesToLZ [Hole n t1, Hole m t2])
@@ -105,19 +111,14 @@ rfTreeZipper :: ReplaceFocus -> TreeZipper NodeInfo -> TreeZipper NodeInfo
 rfTreeZipper rf tz = putTree (rfToTree rf) tz
 
 
-
-
-
--- Notice:
--- There's no need to keep track of local contexts
--- in the TopLevel, since these can be quickly
--- recovered from the path in the tree-zipper.
-
+-- | Encodes a top-level definition,
+-- including its name, type annotation, and whether
+-- it's recursive or not.
 data TopLevel = TopLevel {
-  name :: String,
-  tlType :: Type,
-  expr :: TreeZipper NodeInfo,
-  isRec :: Bool
+  name :: String, -- the name of the definition.
+  tlType :: Type, -- the type of the definition.
+  expr :: TreeZipper NodeInfo, -- the underlying expression.
+  isRec :: Bool -- is the definition recursive?
 }
 
 -- | Constructs a top-level 'let',
@@ -142,7 +143,6 @@ letrecDefn n t ix = TopLevel {
   isRec = True
 }
 
-
 -- | Replace the expression of a top-level
 -- with another.
 replaceExpr :: TreeZipper NodeInfo -> TopLevel -> TopLevel
@@ -152,10 +152,18 @@ replaceExpr tz tl = tl { expr = tz }
 rfTopLevel :: ReplaceFocus -> TopLevel -> TopLevel
 rfTopLevel rf tl = replaceExpr (putTree (rfToTree rf) (expr tl)) tl
 
+-- | Obtain the type annotation of a given top-level.
 getTypeAnnotation :: TopLevel -> (String, Type)
 getTypeAnnotation tl = (name tl, tlType tl)
 
 type Program = ListZipper TopLevel
+
+-- | Obtain the global context induced by a program.
+inducedGlobal :: Program -> Ctxt
+inducedGlobal prog =
+  Map.fromList $ Zipper.toList (fmap getTypeAnnotation prog)
+
+-- | Utilities for expressions
 
 -- | Given a tree-zipper, returns tree-zippers to
 -- all holes found at or below the focus, along with indices.
@@ -218,14 +226,3 @@ instance Show Type where
       Prod t1 t2 -> show t1 ++ " × " ++ show t2
       TypeVar s -> s
       UVar k -> "?" ++ show k
-
-{-
-Program-wide utilities
--}
-
-
--- | Obtain the global context induced by a program.
-inducedGlobal :: Program -> Ctxt
-inducedGlobal prog =
-  Map.fromList $ Zipper.toList (fmap getTypeAnnotation prog)
-

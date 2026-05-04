@@ -18,7 +18,9 @@ unparsedGroundContext =
     ("eq", "t -> t -> Bool"),
     ("pair", "a -> b -> (a * b)"),
     ("fst", "(a * b) -> a"),
-    ("snd", "(a * b) -> b")
+    ("snd", "(a * b) -> b"),
+    ("add", "Int -> Int -> Int"),
+    ("sub", "Int -> Int -> Int")
   ]
 
 -- | Filters an unparsed context, to include only

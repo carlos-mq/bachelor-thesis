@@ -64,6 +64,16 @@ str s = do
   spaces
   return t
 
+parseBool :: Parser Bool
+parseBool = do
+  spaces
+  b <- many alphaNum
+  spaces
+  case b of
+    "true" -> return True
+    "false" -> return False
+    _ -> fail "Couldn't parse boolean!"
+
 
 {-
 ======================================================
@@ -181,6 +191,12 @@ parseAction = do
       return GoLeft
     "goRight" ->
       return GoRight
+    "int" -> do
+      n <- parseInteger
+      return (IntAction n)
+    "bool" -> do
+      b <- parseBool
+      return (BoolAction b)
     _ -> fail "Unknown command!"
 
 

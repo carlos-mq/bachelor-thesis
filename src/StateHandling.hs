@@ -7,13 +7,16 @@ import Data.Set as Set
 import Zipper
 
 
-
+-- | Keeps track of the current state of the synthesis.
 data SynthesisState = SynthesisState {
   prog :: Program, -- The zipper.
   groundCtxt :: Ctxt, -- The context of predefined functions.
   freshCounter :: Int -- A counter to generate fresh vars.
 }
 
+-- | Given a ground context, creates an
+-- 'initial synthesis state' with this ground context,
+-- an initialized index counter, and an empty program.
 initialState :: Ctxt -> SynthesisState
 initialState g = SynthesisState {
   prog = Zipper.empty,
@@ -37,6 +40,8 @@ data Action =
   AscendFocus        |
   GoLeft             |
   GoRight            |
+  IntAction Int      |
+  BoolAction Bool    |
   UnknownAction
 
 -- | A substitution is a map from unification type variable
@@ -365,5 +370,3 @@ countTypeVarsInGlobal ss varName =
 -- | Propagate the substitution through the whole definition.
 propagateSubstitution :: Substitution -> SynthesisState -> SynthesisState
 propagateSubstitution subst ss = replaceDefn (propagateSubstTree subst $ getProgFocus ss) ss
-
--- | 

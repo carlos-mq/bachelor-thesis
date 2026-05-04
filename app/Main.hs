@@ -11,6 +11,10 @@ import System.IO
 import Complete
 import qualified Data.Map as Map
 
+-- Maximum number of suggested tactics to show.
+suggestionLimit :: Int 
+suggestionLimit = 6
+
 {-
 Represents the output of the 'complete' function
 in a readable way.
@@ -18,7 +22,7 @@ in a readable way.
 showComplete :: [(Tactic, ReplaceFocus)] -> String
 showComplete out =
   let
-    indexed = zip [0..] out
+    indexed = zip [1..suggestionLimit] out
   in
     concatMap (\(n, (tac, rf)) -> (show n) ++ ". " ++ (show rf) ++ " [ " ++ (tacticName tac) ++ " ]\n") indexed
 
@@ -27,7 +31,7 @@ instance Show SynthesisState where
     let
       completeList = showComplete (complete ss (tacticList ss))
     in 
-    "Current hole: " ++ (showCurrentHole ss) ++ "\n" ++
+    "\n" ++ "Current hole: " ++ (showCurrentHole ss) ++ "\n \n" ++
     (show $ prog ss) ++ "\n" ++ "Options: \n" ++ completeList
 
 prompt :: String -> IO String
@@ -66,6 +70,10 @@ readAction ss = do
     VarGlobal x -> do
       let shift = countTypeVarsInGlobal ss x
       display (runTactic (varGlobalTactic shift x) ss)
+    IntAction n -> do
+      display (runTactic (intTactic n) ss)
+    BoolAction b -> do
+      display (runTactic (boolTactic b) ss)
     GroundContext -> do
       putStrLn (showCtxt (groundCtxt ss))
       readAction ss

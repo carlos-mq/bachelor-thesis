@@ -47,6 +47,8 @@ tacticList ss =
     globalEnv = keys $ globalCtxt ss
     shift = countTypeVarsInGlobal ss
     varGlobals = List.map (\var -> varGlobalTactic (shift var) var) globalEnv
-    intro = introTactic (variableGen ss)
+    bools = [boolTactic True, boolTactic False]
+    ints = List.map intTactic [0..10]
+    intros = introTactic (variableGen ss)
   in
-    varLocals ++ varGlobals ++ [casesTactic, intro]
+    varLocals ++ varGlobals ++ bools ++ ints ++ [casesTactic, intros, genApplyTactic]

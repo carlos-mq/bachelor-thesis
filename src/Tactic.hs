@@ -10,7 +10,7 @@ data Tactic = Tactic {
   tacticName :: String, -- The name of the tactic.
   tactic :: SynthesisState -> Maybe (Expression, Substitution), -- The underlying function of the tactic.
   willPropagate  :: Bool, -- Whether the tactic propagates substitutions or not.
-  counterShift :: Int, -- How much to increment the counter upon applying this tactic.
+  counterShift :: Int, -- How much to increment the unification variable counter upon applying this tactic.
   ranking :: Int -- How useful the tactic is.
 }
 
@@ -140,4 +140,40 @@ varLocalTactic varName = Tactic {
   willPropagate = False,
   counterShift = 0,
   ranking = 40
+}
+
+int :: Int -> SynthesisState -> Maybe (Expression, Substitution)
+int n ss =
+  case holeData ss of
+    Just (_, t) ->
+      case unify [(t, Z)] of
+        Just subst -> Just (ToNum n, subst)
+        _ -> Nothing
+    _ -> Nothing 
+
+intTactic :: Int -> Tactic
+intTactic n = Tactic {
+  tacticName = "int " ++ show n,
+  tactic = int n,
+  willPropagate = True,
+  counterShift = 0,
+  ranking = 7
+}
+
+bool :: Bool -> SynthesisState -> Maybe (Expression, Substitution)
+bool b ss =
+  case holeData ss of
+    Just (_, t) ->
+      case unify [(t, B)] of
+        Just subst -> Just (ToBool b, subst)
+        _ -> Nothing
+    _ -> Nothing
+
+boolTactic :: Bool -> Tactic
+boolTactic b = Tactic {
+  tacticName = "bool " ++ (if b then "true" else "false"),
+  tactic = bool b,
+  willPropagate = True, 
+  counterShift = 0,
+  ranking = 5
 }
