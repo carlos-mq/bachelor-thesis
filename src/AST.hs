@@ -62,6 +62,31 @@ tVarToUVar varMap t =
 uSub :: Int -> Type -> Type
 uSub ix t = tVarToUVar (indexTypeVars ix t) t
 
+-- | Splits a function type t1 -> ... -> tn -> t0
+-- to (t0, [t1, ..., tn]).
+splitFunctionType :: Type -> (Type, [Type])
+splitFunctionType t =
+  case t of
+    Func headType tailType ->
+      let
+        (p, ps) = splitFunctionType tailType
+      in
+        (p, headType : ps)
+    _ -> (t, [])
+
+-- | Splits a function type t1 -> ... -> tn -> t0,
+-- only if there's at least one parameter.
+
+splitFunctionType1 :: Type -> Maybe (Type, [Type])
+splitFunctionType1 t =
+  case splitFunctionType t of
+    (_, []) -> Nothing
+    (outType, paramTypes) -> Just (outType, paramTypes)
+
+-- | Counts the number of parameters of the function.
+countParams :: Type -> Int
+countParams t = length $ snd $ splitFunctionType t
+
 
 type Ctxt = Map String Type
 
@@ -85,7 +110,8 @@ data ReplaceFocus =
   ToLambda String Type Int Type     | -- ToLambda x t1 k t2: replace with \(x : t1) |-> (-#k : t2)
   ToApp Int Type Int Type           | -- ToApp n t1 m t2: replace with (-#n : t1) (-#m : t2)
   ToPair Int Type Int Type          | -- ToPair n t1 m t2: replace with (-#n : t1, -#m : t2)
-  ToIfte Int Type Int Type Int Type  -- ToIfte l t1 n t2 m t3: replace with if (-#l : t1) then (-#n : t2) else (-#m : t3)
+  ToIfte Int Type Int Type Int Type | -- ToIfte l t1 n t2 m t3: replace with if (-#l : t1) then (-#n : t2) else (-#m : t3)
+  ToApps String Int [Type]         -- ToApps f n [t1, ..., tk]: replace with f (-#n : t1) ... (-#(n + k) : tk)
 
 -- | Convert a list of nodes into a list-zipper of singleton trees with
 -- these as roots.
@@ -93,18 +119,38 @@ nodesToLZ :: [NodeInfo] -> ListZipper (Tree NodeInfo)
 nodesToLZ nodes =
   toListZipper $ List.map (\n -> (Tree n Zipper.empty)) nodes
 
+-- | Construct a tree, given the info at the root and the info at the children.
+makeTree :: NodeInfo -> [NodeInfo] -> Tree NodeInfo
+makeTree rootInfo childrenInfo = Tree rootInfo (nodesToLZ childrenInfo)
+
+-- | Given trees [t1, ..., tn], construct tn  ... t1.
+-- Notice: in reverse order!
+constructApply :: [Tree NodeInfo] -> Tree NodeInfo
+constructApply [] = EmptyTree
+constructApply [t] = t
+constructApply (t : ts) = Tree App (toListZipper [constructApply ts, t])
+
 
 -- | Obtain the tree corresponding to a replacement action.
 rfToTree :: ReplaceFocus -> Tree NodeInfo
 rfToTree rf =
   case rf of
-    ToNum n -> Tree (Num n) Zipper.empty
-    ToBool b -> Tree (Boolean b) Zipper.empty
-    ToVar s -> Tree (Var s) Zipper.empty
-    ToLambda x t1 k t2 -> Tree (Lambda x t1) (nodesToLZ [Hole k t2])
-    ToApp n t1 m t2 -> Tree App (nodesToLZ [Hole n t1, Hole m t2])
-    ToPair n t1 m t2 -> Tree Pair (nodesToLZ [Hole n t1, Hole m t2])
-    ToIfte l t1 n t2 m t3 -> Tree Ifte (nodesToLZ [Hole l t1, Hole n t2, Hole m t3])
+    ToNum n -> makeTree (Num n) []
+    ToBool b -> makeTree (Boolean b) []
+    ToVar s -> makeTree (Var s) []
+    ToLambda x t1 k t2 -> makeTree (Lambda x t1) [Hole k t2]
+    ToApp n t1 m t2 -> makeTree App [Hole n t1, Hole m t2]
+    ToPair n t1 m t2 -> makeTree Pair [Hole n t1, Hole m t2]
+    ToIfte l t1 n t2 m t3 -> makeTree Ifte [Hole l t1, Hole n t2, Hole m t3]
+    ToApps f _ [] -> makeTree (Var f) []
+    ToApps f n types ->
+      let
+        args = List.map (\(k, t) -> Hole k t) (zip [n..] types)
+        argTrees = List.map (`Tree` Zipper.empty) args
+        trees = (makeTree (Var f) []) : argTrees
+      in
+        constructApply $ reverse trees
+
 
 -- | Replace the focus of a tree-zipper, given a replacement action.
 rfTreeZipper :: ReplaceFocus -> TreeZipper NodeInfo -> TreeZipper NodeInfo

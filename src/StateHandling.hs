@@ -11,7 +11,7 @@ import Zipper
 data SynthesisState = SynthesisState {
   prog :: Program, -- The zipper.
   groundCtxt :: Ctxt, -- The context of predefined functions.
-  freshCounter :: Int -- A counter to generate fresh vars.
+  freshCounter :: Int -- A counter to generate fresh vars, and hole indices.
 }
 
 -- | Given a ground context, creates an
@@ -24,8 +24,8 @@ initialState g = SynthesisState {
   freshCounter = 0
 }
 
-data Action = 
-  Let String Type    | 
+data Action =
+  Let String Type    |
   Letrec String Type |
   Jump Int           |
   Exit               |
@@ -42,6 +42,8 @@ data Action =
   GoRight            |
   IntAction Int      |
   BoolAction Bool    |
+  LocalApply String  |
+  GlobalApply String |
   UnknownAction
 
 -- | A substitution is a map from unification type variable
@@ -111,7 +113,7 @@ unify (c : cs) =
     (Prod t1 t2, Prod t1' t2') -> unify $ (t1, t1') : (t2, t2') : cs
     (Func t1 t2, Func t1' t2') -> unify $ (t1, t1') : (t2, t2') : cs
     (List t1, List t1') -> unify $ (t1, t1') : cs
-    (t1, t2) -> 
+    (t1, t2) ->
       if t1 == t2
         then unify cs
         else Nothing
@@ -160,7 +162,7 @@ getLocalHoles ss =
 -- | Action: replace the current definition in focus
 -- with another, if possible.
 replaceDefn :: TreeZipper NodeInfo -> SynthesisState -> SynthesisState
-replaceDefn tz ss = 
+replaceDefn tz ss =
   case getFocus (prog ss) of
     Nothing -> ss
     Just tp -> ss { prog = Zipper.put (replaceExpr tz tp) (prog ss) }
@@ -220,14 +222,14 @@ showCurrentHole ss =
   case holeData ss of
     Just (k, _) -> show k
     Nothing -> "N/A"
-    
+
 -- | Defines a new top-level 'let' at the end of the program,
 -- given its name and its type.
 newLet :: String -> Type -> SynthesisState -> SynthesisState
 newLet n t ss =
-  ss { 
+  ss {
       prog = append (letDefn n t (freshCounter ss)) (prog ss),
-      freshCounter = (freshCounter ss) + 1 
+      freshCounter = (freshCounter ss) + 1
        }
 
 -- | Defines a new top-level 'letrec' at the end of the program,
@@ -239,7 +241,7 @@ newLetrec n t ss =
 
 -- | Moves the focus down in the current expression.
 descendFocus :: SynthesisState -> SynthesisState
-descendFocus ss = 
+descendFocus ss =
   case getFocus (prog ss) of
     Nothing -> ss
     Just tp ->
@@ -269,6 +271,16 @@ rightFocus ss =
     Just tp ->
       replaceDefn (goRight (expr tp)) ss
 
+-- | Determines whether we must find a new hole after applying the
+-- replacement action.
+mustJump :: ReplaceFocus -> Bool
+mustJump (ToVar _) = True
+mustJump (ToNum _) = True
+mustJump (ToBool _) = True
+mustJump (ToApps _ _ _) = True
+mustJump _ = False
+
+
 -- | Replaces the current focus depending on the replacing action,
 -- then moving the focus to an appropriate place.
 replace :: ReplaceFocus -> SynthesisState -> SynthesisState
@@ -276,12 +288,13 @@ replace rf ss =
   let
     newSs = replaceDefn (rfTreeZipper rf (getProgFocus ss)) ss
   in
-    case rf of
-      ToVar _ ->
+    if (mustJump rf)
+      then
         case anyHole newSs of
           Nothing -> newSs
           Just ss' -> ss'
-      _ -> descendFocus newSs
+      else
+        descendFocus newSs
 
 -- | Obtains the name of the current definition in focus.
 getDefnName :: SynthesisState -> Maybe String
@@ -343,7 +356,7 @@ localCtxt ss =
     l = getLocal (getProgFocus ss)
   in
     if isRecDefn ss
-      then 
+      then
         case getDefnData ss of
           Nothing -> l
           Just (n, t) ->
@@ -357,7 +370,7 @@ localCtxt ss =
 -- type of a given variable, in the local context.
 -- If this variable isn't present in the context, defaults to 0.
 countTypeVarsInLocal :: SynthesisState -> String -> Int
-countTypeVarsInLocal ss varName = 
+countTypeVarsInLocal ss varName =
   maybeCountTypeVars (Map.lookup varName (localCtxt ss))
 
 -- | Obtains the number of distinct type variables in the
@@ -366,6 +379,15 @@ countTypeVarsInLocal ss varName =
 countTypeVarsInGlobal :: SynthesisState -> String -> Int
 countTypeVarsInGlobal ss varName =
   maybeCountTypeVars (Map.lookup varName (globalCtxt ss))
+
+-- | Obtains the number of parameters in the type of a function
+-- in the local context.
+countParamsInLocal :: SynthesisState -> String -> Int
+countParamsInLocal ss funcName = maybe 0 countParams (Map.lookup funcName (localCtxt ss))
+-- | Obtains the number of parameters in the type of a function
+-- in the global context.
+countParamsInGlobal :: SynthesisState -> String -> Int
+countParamsInGlobal ss funcName = maybe 0 countParams (Map.lookup funcName (globalCtxt ss))
 
 -- | Propagate the substitution through the whole definition.
 propagateSubstitution :: Substitution -> SynthesisState -> SynthesisState

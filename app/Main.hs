@@ -13,7 +13,7 @@ import qualified Data.Map as Map
 
 -- Maximum number of suggested tactics to show.
 suggestionLimit :: Int 
-suggestionLimit = 6
+suggestionLimit = 10
 
 {-
 Represents the output of the 'complete' function
@@ -32,7 +32,7 @@ instance Show SynthesisState where
       completeList = showComplete (complete ss (tacticList ss))
     in 
     "\n" ++ "Current hole: " ++ (showCurrentHole ss) ++ "\n \n" ++
-    (show $ prog ss) ++ "\n" ++ "Options: \n" ++ completeList
+    (show $ prog ss) ++ "\n" ++ "Suggestions: \n" ++ completeList
 
 prompt :: String -> IO String
 prompt text = do
@@ -74,6 +74,12 @@ readAction ss = do
       display (runTactic (intTactic n) ss)
     BoolAction b -> do
       display (runTactic (boolTactic b) ss)
+    LocalApply f -> do
+      let shift = countParamsInLocal ss f
+      display (runTactic (localApplyTactic shift f) ss)
+    GlobalApply f -> do
+      let shift = (countParamsInLocal ss f) + (countTypeVarsInGlobal ss f)
+      display (runTactic (globalApplyTactic shift f) ss)
     GroundContext -> do
       putStrLn (showCtxt (groundCtxt ss))
       readAction ss

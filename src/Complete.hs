@@ -35,10 +35,10 @@ complete state tactics =
         Nothing -> valid ts
         Just e -> (t, e) : (valid ts)
 
-{-
-Obtains a list of all tactics that could potentially be
-useful for a given context.
--}
+
+
+-- | Obtains a list of all tactics that could potentially be
+-- useful for a given context.
 tacticList :: SynthesisState -> [Tactic]
 tacticList ss =
   let
@@ -46,9 +46,15 @@ tacticList ss =
     varLocals = List.map varLocalTactic localEnv
     globalEnv = keys $ globalCtxt ss
     shift = countTypeVarsInGlobal ss
-    varGlobals = List.map (\var -> varGlobalTactic (shift var) var) globalEnv
+    varGlobals = List.map (\var -> varGlobalTactic (varGlobalShift var) var) globalEnv
     bools = [boolTactic True, boolTactic False]
     ints = List.map intTactic [0..10]
     intros = introTactic (variableGen ss)
+    localApplys = List.map (\func -> localApplyTactic (localApplyShift func) func) localEnv
+    globalApplys = List.map (\func -> globalApplyTactic (globalApplyShift func) func) globalEnv
   in
-    varLocals ++ varGlobals ++ bools ++ ints ++ [casesTactic, intros, genApplyTactic]
+    varLocals ++ varGlobals ++ bools ++ ints ++ localApplys ++ globalApplys ++ [casesTactic, intros, genApplyTactic]
+  where
+    varGlobalShift var = countTypeVarsInGlobal ss var
+    localApplyShift func = countParamsInLocal ss func
+    globalApplyShift func = (countParamsInGlobal ss func) + (countTypeVarsInGlobal ss func)

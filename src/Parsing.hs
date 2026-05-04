@@ -197,6 +197,12 @@ parseAction = do
     "bool" -> do
       b <- parseBool
       return (BoolAction b)
+    "localApply" -> do
+      name <- nextWord
+      return (LocalApply name)
+    "globalApply" -> do
+      name <- nextWord
+      return (GlobalApply name)
     _ -> fail "Unknown command!"
 
 

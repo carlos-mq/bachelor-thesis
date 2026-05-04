@@ -3,6 +3,7 @@ module Tactic where
 import AST
 import StateHandling
 import Data.Map as Map
+import qualified Data.List as List
 
 type Expression = ReplaceFocus
 
@@ -96,6 +97,7 @@ genApplyTactic = Tactic {
 
 -- | VarGlobal requires knowing the counter shift beforehand,
 -- since it depends on the actual type of the parameter.
+{-
 varGlobal :: String -> SynthesisState -> Maybe (Expression, Substitution)
 varGlobal varName ss =
   case holeData ss of
@@ -110,6 +112,16 @@ varGlobal varName ss =
               _ -> Nothing
         _ -> Nothing
     _ -> Nothing
+-}
+
+varGlobal :: String -> SynthesisState -> Maybe (Expression, Substitution)
+varGlobal varName ss = do
+  (_, holeType) <- holeData ss
+  varType <- Map.lookup varName (globalCtxt ss)
+  let freshType = uSub (freshCounter ss) varType
+  subst <- unify [(freshType, holeType)]
+  return (ToVar varName, subst)
+
 
 
 varGlobalTactic :: Int -> (String -> Tactic)
@@ -121,6 +133,7 @@ varGlobalTactic shift varName = Tactic {
   ranking = 20
 }
 
+{-
 varLocal :: String -> SynthesisState -> Maybe (Expression, Substitution)
 varLocal varName ss =
   case holeData ss of
@@ -132,6 +145,15 @@ varLocal varName ss =
             _ -> Nothing
         _ -> Nothing
     _ -> Nothing
+-}
+
+varLocal :: String -> SynthesisState -> Maybe (Expression, Substitution)
+varLocal varName ss = do
+  (_, holeType) <- holeData ss
+  varType <- Map.lookup varName (localCtxt ss)
+  subst <- unify [(varType, holeType)]
+  return (ToVar varName, subst)
+
 
 varLocalTactic :: String -> Tactic
 varLocalTactic varName = Tactic {
@@ -176,4 +198,49 @@ boolTactic b = Tactic {
   willPropagate = True, 
   counterShift = 0,
   ranking = 5
+}
+
+-- The globalApply and localApply tactics
+
+globalApply :: String -> SynthesisState -> Maybe (Expression, Substitution)
+globalApply funcName ss = do
+  (_, holeType) <- holeData ss
+  funcType <- Map.lookup funcName (globalCtxt ss)
+  
+  let ix = freshCounter ss
+  let freshType = uSub ix funcType
+  let shift = countTypeVars freshType
+  (outType, paramTypes) <- splitFunctionType1 freshType
+  subst <- unify [(outType, holeType)]
+
+  let newParamTypes = List.map (applySubst subst) paramTypes
+  return (ToApps funcName (ix + shift) newParamTypes, subst)
+
+globalApplyTactic :: Int -> (String -> Tactic)
+globalApplyTactic shift funcName = Tactic {
+  tacticName = "globalApply " ++ funcName,
+  tactic = globalApply funcName,
+  willPropagate = True,
+  counterShift = shift,
+  ranking = 21
+}
+
+localApply :: String -> SynthesisState -> Maybe (Expression, Substitution)
+localApply funcName ss = do
+  (_, holeType) <- holeData ss
+  funcType <- Map.lookup funcName (localCtxt ss)
+  (outType, paramTypes) <- splitFunctionType1 funcType
+  subst <- unify [(outType, holeType)]
+
+  let ix = freshCounter ss
+  let newParamTypes = List.map (applySubst subst) paramTypes
+  return (ToApps funcName ix newParamTypes, subst)
+
+localApplyTactic :: Int -> (String -> Tactic)
+localApplyTactic shift funcName = Tactic {
+  tacticName = "localApply " ++ funcName,
+  tactic = localApply funcName,
+  willPropagate = False,
+  counterShift = shift,
+  ranking = 21
 }

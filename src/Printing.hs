@@ -96,6 +96,7 @@ rfToPrint rf =
     ToApp k1 t1 k2 t2 -> PApp [PHole k1 t1, PHole k2 t2]
     ToPair k1 t1 k2 t2 -> PPair (PHole k1 t1) (PHole k2 t2)
     ToIfte l t1 n t2 m t3 -> PIfte (PHole l t1) (PHole n t2) (PHole m t3)
+    ToApps f n types -> PApp (PVar f : zipWith PHole [n..] types)
 
 instance Show PrintExpression where
   show p =
