@@ -31,7 +31,10 @@ runTactic tac ss =
     Nothing -> ss
     Just (e, subst) ->
       let
-        newSs = replace e (propagateSubstitution subst ss)
+        newSs = 
+          if willPropagate tac
+            then replace e (propagateSubstitution subst ss)
+            else replace e ss
       in
         newSs { freshCounter = freshCounter ss + counterShift tac }
 

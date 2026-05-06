@@ -143,7 +143,7 @@ PARSING OF ACTIONS
 nextWord :: Parser String
 nextWord = do
   spaces
-  many letter
+  many alphaNum
 
 parseAction :: Parser Action
 parseAction = do

@@ -7,26 +7,6 @@ import Data.Map as Map
 import Data.List as List
 import StateHandling
 
-{-
-data PrintType =
-  PB |
-  PZ |
-  PProd PrintType PrintType  | 
-  PFunc [PrintType]          |
-  PList PrintType            |
-  PTVar String               |
-  PUVar Int         
-
--- | Flattens the functions for better printing; i.e.
--- (a -> (b -> c)) is printed as (a -> b -> c).
-flattenTypes :: PrintType -> PrintType
-flattenTypes p =
-  case p of
-    PProd p1 p2 -> PProd (flattenTypes p1) (flattenTypes p2)
-    PList p' -> PList (flattenTypes p')
-    PFunc
--}
-
 data PrintExpression =
   PNum Int                              |
   PBool Bool                            |
