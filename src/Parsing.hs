@@ -1,9 +1,8 @@
+{-|
+Module      : Parsing
+Description : Here, we implement the parsing of types and commands using the 'parsec' library.
+-}
 module Parsing where
-
-import Data.Maybe
-import qualified Data.Map as MP
-import qualified Data.Set as ST
-import Data.List
 
 import AST
 import StateHandling
@@ -11,12 +10,9 @@ import StateHandling
 import Text.Parsec
 import Text.Parsec.String
 import Text.Parsec.Expr
-import Text.Parsec.Token
 import Data.Functor
-import Control.Monad.State
-import Control.Applicative (empty)
 
--- | Integer parsing utilities
+-- * Elementary Parsers
 
 -- | Given a character, obtains an integer
 -- if this character is a digit.
@@ -49,6 +45,7 @@ strToInt s =
             Nothing -> Nothing
         Nothing -> Nothing
 
+-- | Parses a non-negative integer.
 parseInteger :: Parser Int
 parseInteger = do
   spaces
@@ -57,6 +54,7 @@ parseInteger = do
     Just n -> return n
     Nothing -> fail "Couldn't parse integer!"
 
+-- | Parses a given string.
 str :: String -> Parser String
 str s = do
   spaces
@@ -64,6 +62,7 @@ str s = do
   spaces
   return t
 
+-- | Parses a boolean literal.
 parseBool :: Parser Bool
 parseBool = do
   spaces
@@ -74,49 +73,56 @@ parseBool = do
     "false" -> return False
     _ -> fail "Couldn't parse boolean!"
 
+-- * Parsing of Types
 
-{-
-======================================================
-|                  PARSING OF TYPES                  |
-======================================================
--}
-
+-- | Intermediate representation for the parsing of types
 data TypeAST =
   PZ | PB | PList TypeAST | PFunc TypeAST TypeAST
   | PProd TypeAST TypeAST | PVar String | PParens TypeAST
   deriving (Eq, Show)
 
+-- | Parses a string into the intermediate representation of types.
 typeParser :: Parser TypeAST
 typeParser = buildExpressionParser table pTypeTerm
 
+-- | Parses a type constructor.
 opParser :: String -> t -> Parser t
 opParser name f = do
   _ <- str name
   return f
 
+-- | Table for type constructors.
 table = [ [Infix (try $ opParser "*" PProd) AssocLeft],
           [Infix (try $ opParser "->" PFunc) AssocRight]]
 
+-- | Parses a type term (i.e. one without type constructors).
 pTypeTerm :: Parser TypeAST
 pTypeTerm = pInt <|> pBool <|> pVar <|> pList <|> pParens
 
+-- | Parses the 'Z' type.
 pInt :: Parser TypeAST
 pInt = str "Int" $> PZ
 
+-- | Parses the 'B' type.
 pBool :: Parser TypeAST
 pBool = str "Bool" $> PB
 
+-- | Parses type variables.
 pVar :: Parser TypeAST
 pVar = do
   c <- letter 
   return (PVar [c])
 
+-- | Parses parentheses in types.
 pParens :: Parser TypeAST
 pParens = PParens <$> between (str "(") (str ")") typeParser
 
+-- | Parses list type constructors.
 pList :: Parser TypeAST
 pList = PList <$> between (str "[") (str "]") typeParser
 
+-- | Converts the intermediate representation for types into
+-- actual types.
 astToType :: TypeAST -> Type
 astToType t =
   case t of
@@ -128,15 +134,14 @@ astToType t =
     PVar s -> TypeVar s
     PParens t' -> astToType t'
 
+-- | Performs the full parsing of a string to a type.
 getType :: String -> Maybe Type
 getType t = 
   case parse typeParser "" t of
     Left _ -> Nothing
     Right ast -> Just $ astToType ast
 
-{-
-PARSING OF ACTIONS
--}
+-- * Parsing of Actions
 
 -- | Parses the next alphabetic word,
 -- assuming no leading whitespace.
@@ -145,6 +150,7 @@ nextWord = do
   spaces
   many alphaNum
 
+-- | Parses a command introduced by the user.
 parseAction :: Parser Action
 parseAction = do
   action <- nextWord
@@ -205,7 +211,9 @@ parseAction = do
       return (GlobalApply name)
     _ -> fail "Unknown command!"
 
-
+-- | Performs the full parsing of an introduced
+-- action, returning 'UnknownAction} if the
+-- parsing failed.
 getAction :: String -> Action
 getAction a =
   case parse parseAction "" a of

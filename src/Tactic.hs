@@ -1,3 +1,7 @@
+{-|
+Module      : Tactic
+Description : Defines the tactics and implements functions to run them.
+-}
 module Tactic where
 
 import AST
@@ -7,6 +11,9 @@ import qualified Data.List as List
 
 type Expression = ReplaceFocus
 
+-- * Data Types and Functions for Tactics
+
+-- | Wrapper for tactics, including information such as name, ranking, etc.
 data Tactic = Tactic {
   tacticName :: String, -- The name of the tactic.
   tactic :: SynthesisState -> Maybe (Expression, Substitution), -- The underlying function of the tactic.
@@ -38,17 +45,22 @@ runTactic tac ss =
       in
         newSs { freshCounter = freshCounter ss + counterShift tac }
 
--- | The 'intro' tactic
--- To-do: Add a check to see if the variable name is already in the context.
+-- * Implemented Tactics
+
+-- | The underlying function for the 'intro' tactic.
 intro :: String -> SynthesisState -> Maybe (Expression, Substitution)
 intro var ss =
-  let
-    ix = freshCounter ss
-  in
-    case holeData ss of
-      Just (_, Func t1 t2) -> Just (ToLambda var t1 ix t2, empty)
-      _ -> Nothing
+  case (Map.lookup var (globalCtxt ss), Map.lookup var (localCtxt ss)) of
+    (Nothing, Nothing) ->
+      let
+        ix = freshCounter ss
+      in
+        case holeData ss of
+          Just (_, Func t1 t2) -> Just (ToLambda var t1 ix t2, empty)
+          _ -> Nothing
+    _ -> Nothing
 
+-- | The 'intro' tactic.
 introTactic :: String -> Tactic
 introTactic var = Tactic {
   tacticName = "intro " ++ var,
@@ -58,7 +70,7 @@ introTactic var = Tactic {
   ranking = 25
 }
 
--- | The 'cases' tactic
+-- | The underlying function for the 'cases' tactic.
 cases :: SynthesisState -> Maybe (Expression, Substitution)
 cases ss =
   let
@@ -68,6 +80,7 @@ cases ss =
       Just (_, t) -> Just (ToIfte ix B (ix + 1) t (ix + 2) t, empty)
       _ -> Nothing
 
+-- | The 'cases' tactic.
 casesTactic :: Tactic
 casesTactic = Tactic {
   tacticName = "cases",
@@ -77,7 +90,7 @@ casesTactic = Tactic {
   ranking = 17
 }
 
--- | The 'general apply' tactic
+-- | The underlying function for the 'genApply' tactic.
 genApply :: SynthesisState -> Maybe (Expression, Substitution)
 genApply ss =
   let
@@ -87,6 +100,7 @@ genApply ss =
       Just (_, t) -> Just (ToApp ix (Func (UVar (ix + 1)) t) (ix + 2) (UVar (ix + 1)), empty)
       _ -> Nothing
 
+-- | The 'genApply' tactic.
 genApplyTactic :: Tactic
 genApplyTactic = Tactic {
   tacticName = "genApply",
@@ -96,27 +110,7 @@ genApplyTactic = Tactic {
   ranking = 15
 }
 
--- | The 'var' tactics
-
--- | VarGlobal requires knowing the counter shift beforehand,
--- since it depends on the actual type of the parameter.
-{-
-varGlobal :: String -> SynthesisState -> Maybe (Expression, Substitution)
-varGlobal varName ss =
-  case holeData ss of
-    Just (_, t) ->
-      case Map.lookup varName (globalCtxt ss) of
-        Just varType ->
-          let
-            freshType = uSub (freshCounter ss) varType
-          in
-            case unify [(freshType, t)] of
-              Just subst -> Just (ToVar varName, subst)
-              _ -> Nothing
-        _ -> Nothing
-    _ -> Nothing
--}
-
+-- | The underlying function for the 'varGlobal' tactic.
 varGlobal :: String -> SynthesisState -> Maybe (Expression, Substitution)
 varGlobal varName ss = do
   (_, holeType) <- holeData ss
@@ -125,8 +119,7 @@ varGlobal varName ss = do
   subst <- unify [(freshType, holeType)]
   return (ToVar varName, subst)
 
-
-
+-- | The 'varGlobal' tactic.
 varGlobalTactic :: Int -> (String -> Tactic)
 varGlobalTactic shift varName = Tactic {
   tacticName = "varGlobal " ++ varName,
@@ -136,20 +129,7 @@ varGlobalTactic shift varName = Tactic {
   ranking = 20
 }
 
-{-
-varLocal :: String -> SynthesisState -> Maybe (Expression, Substitution)
-varLocal varName ss =
-  case holeData ss of
-    Just (_, t) ->
-      case Map.lookup varName (localCtxt ss) of
-        Just varType ->
-          case unify [(varType, t)] of
-            Just subst -> Just (ToVar varName, subst)
-            _ -> Nothing
-        _ -> Nothing
-    _ -> Nothing
--}
-
+-- | The underlying function for the 'varLocal' tactic.
 varLocal :: String -> SynthesisState -> Maybe (Expression, Substitution)
 varLocal varName ss = do
   (_, holeType) <- holeData ss
@@ -157,7 +137,7 @@ varLocal varName ss = do
   subst <- unify [(varType, holeType)]
   return (ToVar varName, subst)
 
-
+-- | The 'varLocal' tactic.
 varLocalTactic :: String -> Tactic
 varLocalTactic varName = Tactic {
   tacticName = "varLocal " ++ varName,
@@ -167,6 +147,7 @@ varLocalTactic varName = Tactic {
   ranking = 40
 }
 
+-- | The underlying function for the 'int' tactic.
 int :: Int -> SynthesisState -> Maybe (Expression, Substitution)
 int n ss =
   case holeData ss of
@@ -176,6 +157,7 @@ int n ss =
         _ -> Nothing
     _ -> Nothing 
 
+-- | The 'int' tactic.
 intTactic :: Int -> Tactic
 intTactic n = Tactic {
   tacticName = "int " ++ show n,
@@ -185,6 +167,7 @@ intTactic n = Tactic {
   ranking = 7
 }
 
+-- | The underlying function for the 'bool' tactic.
 bool :: Bool -> SynthesisState -> Maybe (Expression, Substitution)
 bool b ss =
   case holeData ss of
@@ -194,6 +177,7 @@ bool b ss =
         _ -> Nothing
     _ -> Nothing
 
+-- | The 'bool' tactic.
 boolTactic :: Bool -> Tactic
 boolTactic b = Tactic {
   tacticName = "bool " ++ (if b then "true" else "false"),
@@ -203,8 +187,7 @@ boolTactic b = Tactic {
   ranking = 5
 }
 
--- The globalApply and localApply tactics
-
+-- | The underlying function for the 'globalApply' tactic.
 globalApply :: String -> SynthesisState -> Maybe (Expression, Substitution)
 globalApply funcName ss = do
   (_, holeType) <- holeData ss
@@ -219,6 +202,7 @@ globalApply funcName ss = do
   let newParamTypes = List.map (applySubst subst) paramTypes
   return (ToApps funcName (ix + shift) newParamTypes, subst)
 
+-- | The 'globalApply' tactic.
 globalApplyTactic :: Int -> (String -> Tactic)
 globalApplyTactic shift funcName = Tactic {
   tacticName = "globalApply " ++ funcName,
@@ -228,6 +212,7 @@ globalApplyTactic shift funcName = Tactic {
   ranking = 21
 }
 
+-- | The underlying function for the 'localApply' tactic.
 localApply :: String -> SynthesisState -> Maybe (Expression, Substitution)
 localApply funcName ss = do
   (_, holeType) <- holeData ss
@@ -239,6 +224,7 @@ localApply funcName ss = do
   let newParamTypes = List.map (applySubst subst) paramTypes
   return (ToApps funcName ix newParamTypes, subst)
 
+-- | The 'localApply' tactic.
 localApplyTactic :: Int -> (String -> Tactic)
 localApplyTactic shift funcName = Tactic {
   tacticName = "localApply " ++ funcName,

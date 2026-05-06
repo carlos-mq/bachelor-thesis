@@ -1,3 +1,7 @@
+{-|
+Module      : Main
+Description : Here lies the entry-point of the application.
+-}
 module Main where
 
 import Zipper
@@ -9,16 +13,14 @@ import GroundContext
 import Printing
 import System.IO
 import Complete
-import qualified Data.Map as Map
 
--- Maximum number of suggested tactics to show.
+
+-- | Maximum number of suggested tactics to show.
 suggestionLimit :: Int 
 suggestionLimit = 10
 
-{-
-Represents the output of the 'complete' function
-in a readable way.
--}
+-- | Represents the output of the 'complete' function
+-- in a readable way.
 showComplete :: [(Tactic, ReplaceFocus)] -> String
 showComplete out =
   let
@@ -34,6 +36,8 @@ instance Show SynthesisState where
     "\n" ++ "Current hole: " ++ (showCurrentHole ss) ++ "\n \n" ++
     (show $ prog ss) ++ "\n" ++ "Suggestions: \n" ++ completeList
 
+-- | Prompts for the user input (also ensuring that the user
+-- is able to fix mistakes).
 prompt :: String -> IO String
 prompt text = do
   hSetBuffering stdin LineBuffering
@@ -42,6 +46,8 @@ prompt text = do
   hFlush stdout
   getLine
 
+-- | Reads the action from the user, and proceeds to
+-- execute it.
 readAction :: SynthesisState -> IO ()
 readAction ss = do
   input <- prompt "> "
@@ -99,11 +105,13 @@ readAction ss = do
       display (rightFocus ss)
     Exit -> return ()
 
+-- | Displays the current state.
 display :: SynthesisState -> IO ()
 display ss = do
   print ss
   readAction ss
 
+-- | Entry-point of the application.
 main :: IO ()
 main = do
   readAction (initialState groundContext)

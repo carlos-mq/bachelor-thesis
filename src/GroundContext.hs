@@ -1,3 +1,7 @@
+{-|
+Module      : GroundContext
+Description : Here, we define the ground context: that is, what is available in our global context from the beginning. It is customizable: it suffices to modify the definition of 'unparsedGroundContext' to add or remove functions from the context.
+-}
 module GroundContext where
 
 import AST

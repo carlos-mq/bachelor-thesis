@@ -1,3 +1,7 @@
+{-|
+Module      : Complete
+Description : Here, we define the 'complete' function which proposes (and ranks) tactics.
+-}
 module Complete where
 
 import Tactic
@@ -6,11 +10,10 @@ import AST
 import Data.List as List
 import Data.Map as Map
 
--- | Variable generator for the 'complete' function
+-- | Variable generator for the 'complete' function:
 -- Considering the current synthesis state,
 -- finds a new variable name that will not collide with
 -- the context.
-
 variableGen :: SynthesisState -> String
 variableGen ss =
   let
@@ -21,10 +24,9 @@ variableGen ss =
   head $ List.filter (\v -> not (elem v unavailable)) varNames
 
 
-{-
-Given the current state and a list of tactics,
-lists all such tactics from most useful to least.
--}
+
+-- | Given the current state and a list of tactics,
+-- lists all such tactics from most useful to least.
 complete :: SynthesisState -> [Tactic] -> [(Tactic, ReplaceFocus)]
 complete state tactics =
   reverse $ sortOn (ranking . fst) (valid tactics)
@@ -45,7 +47,6 @@ tacticList ss =
     localEnv = keys $ localCtxt ss
     varLocals = List.map varLocalTactic localEnv
     globalEnv = keys $ globalCtxt ss
-    shift = countTypeVarsInGlobal ss
     varGlobals = List.map (\var -> varGlobalTactic (varGlobalShift var) var) globalEnv
     bools = [boolTactic True, boolTactic False]
     ints = List.map intTactic [0..10]

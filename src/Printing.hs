@@ -1,12 +1,16 @@
 {-# LANGUAGE FlexibleInstances #-}
+{-|
+Module      : Printing
+Description : Here, we implement the printing of types and expressions; this isn't necessarily a trivial task, since we must take special care to avoid using unnecessary parentheses.
+-}
 module Printing where
 
 import AST
 import Zipper
 import Data.Map as Map
 import Data.List as List
-import StateHandling
 
+-- | Intermediate representation of expressions before printing.
 data PrintExpression =
   PNum Int                              |
   PBool Bool                            |
@@ -18,6 +22,7 @@ data PrintExpression =
   PIfte PrintExpression PrintExpression PrintExpression |
   PNothing
 
+-- | Tabs each line of the introduced string.
 tab :: String -> String
 tab s = unlines $ List.map (" " ++) $ lines s
 
@@ -78,6 +83,7 @@ rfToPrint rf =
     ToIfte l t1 n t2 m t3 -> PIfte (PHole l t1) (PHole n t2) (PHole m t3)
     ToApps f n types -> PApp (PVar f : zipWith PHole [n..] types)
 
+-- | Obtains a pretty-printed representation of the intermediate representation of expressions.
 instance Show PrintExpression where
   show p =
     case p of
@@ -93,6 +99,7 @@ instance Show PrintExpression where
         ++ "else " ++ show p3)
       PNothing -> ""
 
+-- | Obtains a pretty-printed representation of the result of a replacement action.
 instance Show ReplaceFocus where
   show rf = show (rfToPrint rf)
 
@@ -106,10 +113,11 @@ instance Show TopLevel where
       defName ++ " (" ++ name tl ++ " : " ++ show (tlType tl) ++ ") =\n" ++
       tab (show $ flattenApp $ toPrint $ toRoot $ expr tl)
 
--- | Given a program, obtain a pretty-printed representation.
+-- | Given a program, obtains a pretty-printed representation.
 instance Show Program where
   show prog = unlines $ List.map show (Zipper.toList prog)
 
+-- | For debugging: Given a context, obtains a pretty-printed representation.
 showCtxt :: Ctxt -> String
 showCtxt ctxt =
   let

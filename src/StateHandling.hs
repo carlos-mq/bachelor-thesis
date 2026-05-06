@@ -1,11 +1,15 @@
+{-|
+Module      : StateHandling
+Description : Here, everything related to the type "SynthesisState", which encodes the current state, is defined; this includes functions that need to keep track of this state in some way, or modify it. This includes unification, and propagation of substitutions.
+-}
 module StateHandling where
 
 import AST
-import Control.Monad.State
 import Data.Map as Map
 import Data.Set as Set
 import Zipper
 
+-- * State and Actions
 
 -- | Keeps track of the current state of the synthesis.
 data SynthesisState = SynthesisState {
@@ -24,6 +28,7 @@ initialState g = SynthesisState {
   freshCounter = 0
 }
 
+-- | Encodes parsed commands.
 data Action =
   Let String Type    |
   Letrec String Type |
@@ -45,6 +50,8 @@ data Action =
   LocalApply String  |
   GlobalApply String |
   UnknownAction
+
+-- * Substitutions and Unification
 
 -- | A substitution is a map from unification type variable
 -- indices to types.
@@ -130,10 +137,7 @@ nodeSubst s node =
 propagateSubstTree :: Substitution -> TreeZipper NodeInfo -> TreeZipper NodeInfo
 propagateSubstTree s = fmap (nodeSubst s)
 
-
-{-
-Elementary actions
--}
+-- * Functions for Handling State
 
 -- | Checks whether it's the last definition.
 isLast :: SynthesisState -> Bool
@@ -217,6 +221,7 @@ holeData ss =
         Just (Hole k t) -> Just (k, t)
         _ -> Nothing
 
+-- | Obtains the index of the current hole in printable format.
 showCurrentHole :: SynthesisState -> String
 showCurrentHole ss =
   case holeData ss of
@@ -318,24 +323,6 @@ isRecDefn ss =
     Just tp -> (isRec tp)
 
 -- | Obtains the global context at the current focus.
-{-
-Remember: in the global context we should never have the
-current top-level.
--}
-{-
-globalCtxt :: SynthesisState -> Ctxt
-globalCtxt ss =
-  let
-    fullCtxt = Map.union (groundCtxt ss) (inducedGlobal $ prog ss)
-  in
-    if isRecDefn ss
-      then fullCtxt
-      else
-        case getDefnName ss of
-          Nothing -> fullCtxt
-          Just n -> Map.delete n fullCtxt
-          -}
-
 globalCtxt :: SynthesisState -> Ctxt
 globalCtxt ss =
   let
@@ -346,10 +333,6 @@ globalCtxt ss =
         Just n -> Map.delete n fullCtxt
 
 -- | Obtains the local context at the current focus.
-{-
-Remember: in the local context we should only have the
-current top-level IF it's recursive.
--}
 localCtxt :: SynthesisState -> Ctxt
 localCtxt ss =
   let
@@ -384,11 +367,12 @@ countTypeVarsInGlobal ss varName =
 -- in the local context.
 countParamsInLocal :: SynthesisState -> String -> Int
 countParamsInLocal ss funcName = maybe 0 countParams (Map.lookup funcName (localCtxt ss))
+
 -- | Obtains the number of parameters in the type of a function
 -- in the global context.
 countParamsInGlobal :: SynthesisState -> String -> Int
 countParamsInGlobal ss funcName = maybe 0 countParams (Map.lookup funcName (globalCtxt ss))
 
--- | Propagate the substitution through the whole definition.
+-- | Propagates the substitution through the whole definition.
 propagateSubstitution :: Substitution -> SynthesisState -> SynthesisState
 propagateSubstitution subst ss = replaceDefn (propagateSubstTree subst $ getProgFocus ss) ss

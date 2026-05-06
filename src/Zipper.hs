@@ -5,9 +5,11 @@ Description : Defines the core zipper data structures.
 This module implements the relevant zipper functionality
 for navigating around the program AST; in particular, list-zippers and tree-zippers.
 -}
-module Zipper where 
+module Zipper where
 
--- | The list-zipper
+-- * List-Zippers
+
+-- | The list-zipper:
 -- A zipper for lists; either empty, or consisting of
 -- a focus, along with a list of elements to the left
 -- of the focus, and a list of elements to the right.
@@ -137,6 +139,8 @@ put x zx =
   case zx of
     Empty -> Empty
     ListZipper ls _ rs -> ListZipper ls x rs
+
+-- * Tree-Zippers
 
 -- | Tree t: A node with information of type t,
 -- along with a list-zipper of its children.

@@ -1,11 +1,17 @@
+{-|
+Module      : AST
+Description : Here, everything related to the abstract syntax tree is defined; this includes representations for types, expressions (with heavy usage of the previously defined zippers) and programs. Auxiliary functions for them are also defined.
+-}
 module AST where
 
 import Zipper
 import Data.Map as Map
-import Data.Map.Lazy (fromList)
 import Data.List as List
 import Data.Set as Set
 
+-- * Types
+
+-- | Representation of types.
 data Type =
    B              |
    Z              |
@@ -87,9 +93,11 @@ splitFunctionType1 t =
 countParams :: Type -> Int
 countParams t = length $ snd $ splitFunctionType t
 
+-- * Representation of Expressions and Programs
 
 type Ctxt = Map String Type
 
+-- | Internal data for each node of the tree-zipper representing the program.
 data NodeInfo =
   Var String         |
   Hole Int Type      |
@@ -209,7 +217,7 @@ inducedGlobal :: Program -> Ctxt
 inducedGlobal prog =
   Map.fromList $ Zipper.toList (fmap getTypeAnnotation prog)
 
--- | Utilities for expressions
+-- * Utilities for Expressions
 
 -- | Given a tree-zipper, returns tree-zippers to
 -- all holes found at or below the focus, along with indices.
