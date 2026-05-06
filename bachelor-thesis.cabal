@@ -35,10 +35,10 @@ license:            BSD-3-Clause
 license-file:       LICENSE
 
 -- The package author(s).
-author:             Carlos
+author:             Carlos Martinez Quintero
 
 -- An email address to which users can send suggestions, bug reports, and patches.
-maintainer:         carlosfamq@gmail.com
+maintainer:         carlos.martinezq03@gmail.com
 
 -- A copyright notice.
 -- copyright:
