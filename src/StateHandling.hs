@@ -1,6 +1,6 @@
 {-|
 Module      : StateHandling
-Description : Here, everything related to the type "SynthesisState", which encodes the current state, is defined; this includes functions that need to keep track of this state in some way, or modify it. This includes unification, and propagation of substitutions.
+Description : Here, everything related to the type 'SynthesisState', which encodes the current state, is defined; this includes functions that need to keep track of this state in some way, or modify it. This includes unification, and propagation of substitutions.
 -}
 module StateHandling where
 
